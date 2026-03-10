@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<h2>Connections</h2>
+
+<div class="row">
+
+<div class="col-md-4">
+<h4>Followers</h4>
+
+<input type="text" id="followersSearch" placeholder="Search followers..." class="form-control mb-2">
+
+<ul id="followersList">
+{% for f in dashboard.followers | default([]) %}
+<li>{{ f }}</li>
+{% endfor %}
+</ul>
+</div>
+
+
+<div class="col-md-4">
+<h4>Following</h4>
+
+<input type="text" id="followingSearch" placeholder="Search following..." class="form-control mb-2">
+
+<ul id="followingList">
+{% for f in dashboard.following | default([]) %}
+<li>{{ f }}</li>
+{% endfor %}
+</ul>
+</div>
+
+
+<div class="col-md-4">
+<h4>Not Followed Me</h4>
+
+<input type="text" id="notFollowedMeSearch" placeholder="Search..." class="form-control mb-2">
+
+<ul id="notFollowedMeList">
+{% if dashboard.relationship %}
+    {% for f in dashboard.relationship.not_following_back_list | default([]) %}
+    <li>{{ f }}</li>
+    {% endfor %}
+{% endif %}
+</ul>
+</div>
+
+</div>
+
+
+<div class="row mt-4">
+
+<div class="col-md-6">
+<h4>Not Followed By Me</h4>
+
+<input type="text" id="fansSearch" placeholder="Search..." class="form-control mb-2">
+
+<ul id="fansList">
+{% if dashboard.relationship %}
+    {% for f in dashboard.relationship.fans_list | default([]) %}
+    <li>{{ f }}</li>
+    {% endfor %}
+{% endif %}
+</ul>
+</div>
+
+
+<div class="col-md-6">
+<h4>Ghosted Accounts</h4>
+
+<input type="text" id="ghostSearch" placeholder="Search ghosted..." class="form-control mb-2">
+
+<ul id="ghostList">
+{% for g in dashboard.ghosts | default([]) %}
+<li>{{ g }}</li>
+{% endfor %}
+</ul>
+</div>
+
+</div>
+
+
+<script>
+
+function filterList(inputId, listId) {
+
+let input = document.getElementById(inputId);
+let filter = input.value.toLowerCase();
+let items = document.getElementById(listId).getElementsByTagName("li");
+
+for (let i = 0; i < items.length; i++) {
+
+let txt = items[i].textContent || items[i].innerText;
+
+items[i].style.display = txt.toLowerCase().includes(filter) ? "" : "none";
+
+}
+
+}
+
+document.getElementById("followersSearch").onkeyup = () => filterList("followersSearch","followersList");
+document.getElementById("followingSearch").onkeyup = () => filterList("followingSearch","followingList");
+document.getElementById("notFollowedMeSearch").onkeyup = () => filterList("notFollowedMeSearch","notFollowedMeList");
+document.getElementById("fansSearch").onkeyup = () => filterList("fansSearch","fansList");
+document.getElementById("ghostSearch").onkeyup = () => filterList("ghostSearch","ghostList");
+
+</script>
+
+{% endblock %}

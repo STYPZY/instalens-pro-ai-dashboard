@@ -1,0 +1,26 @@
+
+{% extends "layout.html" %}
+{% block content %}
+
+<h2>Searchable Followers Table</h2>
+
+{% if dashboard %}
+
+<table id="followers" class="table table-dark">
+<thead><tr><th>Followers</th></tr></thead>
+<tbody>
+{% for f in dashboard.followers %}
+<tr><td>{{f}}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+
+<script>
+$(document).ready(function(){
+$('#followers').DataTable();
+});
+</script>
+
+{% endif %}
+
+{% endblock %}

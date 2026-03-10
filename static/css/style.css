@@ -1,0 +1,40 @@
+
+body{
+background:#0f172a;
+color:#e5e7eb;
+font-family:Arial;
+}
+
+.sidebar{
+width:230px;
+background:#020617;
+padding:20px;
+min-height:100vh;
+}
+
+.sidebar a{
+color:white;
+text-decoration:none;
+}
+
+.sidebar li{
+padding:10px 0;
+list-style:none;
+}
+
+.content{
+flex:1;
+padding:40px;
+}
+
+.stat{
+padding:20px;
+text-align:center;
+background:#1e293b;
+color:white;
+}
+
+#graph{
+height:600px;
+background:white;
+}
