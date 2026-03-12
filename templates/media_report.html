@@ -1,0 +1,102 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h2>Media Provenance Report</h2>
+    <p>Forensic analysis results for <strong style="color: var(--accent-primary); font-family: var(--font-mono); font-size: 12px;">{{ report.filename }}</strong></p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('media_analysis') }}" class="btn btn-ghost btn-sm">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      New Analysis
+    </a>
+  </div>
+</div>
+
+<div class="report-grid">
+
+  <!-- Hashes -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">File Hashes</div>
+        <div class="card-sub">Cryptographic fingerprints</div>
+      </div>
+      <span class="card-badge">Integrity</span>
+    </div>
+    <div class="hash-row">
+      <span class="hash-key">MD5</span>
+      <span class="hash-val">{{ report.hashes.md5 }}</span>
+    </div>
+    <div class="hash-row">
+      <span class="hash-key">SHA-256</span>
+      <span class="hash-val">{{ report.hashes.sha256 }}</span>
+    </div>
+    <div class="hash-row">
+      <span class="hash-key">pHash</span>
+      <span class="hash-val">{{ report.perceptual_hash }}</span>
+    </div>
+  </div>
+
+  <!-- Metadata -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">EXIF Metadata</div>
+        <div class="card-sub">Embedded file properties</div>
+      </div>
+      <span class="card-badge">{{ report.metadata|length }} fields</span>
+    </div>
+    {% for k, v in report.metadata.items() %}
+    <div class="meta-row">
+      <span class="meta-key">{{ k }}</span>
+      <span class="meta-val">{{ v }}</span>
+    </div>
+    {% endfor %}
+    {% if not report.metadata %}
+    <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);">No metadata found</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Reverse Image Search -->
+<div class="card">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Reverse Image Search</div>
+      <div class="card-sub">Find this image across the web</div>
+    </div>
+    <span class="card-badge">3 Engines</span>
+  </div>
+  <div class="search-links">
+    <a href="{{ search_links.google_lens }}" target="_blank" class="search-link-item">
+      <div class="search-link-icon">🔍</div>
+      <div>
+        <div style="font-weight: 500; font-size: 13px;">Google Lens</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Search with Google's visual AI</div>
+      </div>
+      <span class="link-arrow">↗</span>
+    </a>
+    <a href="{{ search_links.bing }}" target="_blank" class="search-link-item">
+      <div class="search-link-icon">🌐</div>
+      <div>
+        <div style="font-weight: 500; font-size: 13px;">Bing Visual Search</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Microsoft's image search engine</div>
+      </div>
+      <span class="link-arrow">↗</span>
+    </a>
+    <a href="{{ search_links.yandex }}" target="_blank" class="search-link-item">
+      <div class="search-link-icon">🟡</div>
+      <div>
+        <div style="font-weight: 500; font-size: 13px;">Yandex Images</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Yandex reverse image search</div>
+      </div>
+      <span class="link-arrow">↗</span>
+    </a>
+  </div>
+</div>
+
+{% endblock %}

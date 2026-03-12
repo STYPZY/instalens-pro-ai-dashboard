@@ -1,13 +1,37 @@
+from collections import Counter
 
-import random
 
-def follower_ranking(data):
-    followers=data["followers"]
-    ranking=[]
-    for f in followers:
-        ranking.append({
-            "username":f,
-            "score":random.randint(1,100)
-        })
-    ranking=sorted(ranking,key=lambda x:x["score"],reverse=True)
-    return ranking[:50]
+def interaction_ranking(data):
+
+    likes = data.get("likes", [])
+    comments = data.get("comments", [])
+
+    counter = Counter()
+
+    for user in likes:
+        counter[user] += 1
+
+    for user in comments:
+        counter[user] += 2
+
+    ranking = sorted(counter.items(), key=lambda x: x[1], reverse=True)
+
+    return ranking[:20]
+
+
+def loyal_followers(data):
+
+    followers = set(data.get("followers", []))
+    ranking = interaction_ranking(data)
+
+    loyal = []
+
+    for user, score in ranking:
+
+        if user in followers:
+            loyal.append({
+                "user": user,
+                "score": score
+            })
+
+    return loyal

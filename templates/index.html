@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h2>Upload Export</h2>
+    <p>Upload your Instagram data export ZIP to begin analysis</p>
+  </div>
+</div>
+
+<div class="card" style="max-width: 620px;">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Instagram Data Import</div>
+      <div class="card-sub">ZIP · JSON · Supported Formats</div>
+    </div>
+    <span class="card-badge">New Analysis</span>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('index') }}">
+    <div class="upload-zone">
+      <input type="file" name="file" required>
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="upload-title">Drop your export here</div>
+      <div class="upload-sub">or click to browse from your device</div>
+      <div class="format-tags">
+        <span class="format-tag">.zip</span>
+        <span class="format-tag">.json</span>
+        <span class="format-tag">Instagram Export</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
+      <button type="submit">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+        Analyze Export
+      </button>
+      <span style="font-size: 11.5px; color: var(--text-muted);">Processing may take a few seconds</span>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

@@ -1,4 +1,10 @@
 flask==3.0.3
 jinja2==3.1.4
 werkzeug==3.0.3
-gunicorn==22.0.0
+cachetools
+beautifulsoup4
+pillow
+imagehash
+hachoir
+requests
+gunicorn

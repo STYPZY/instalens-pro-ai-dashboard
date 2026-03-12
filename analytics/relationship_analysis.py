@@ -1,21 +1,16 @@
 def relationship_stats(data):
 
-    followers = set(data["followers"])
-    following = set(data["following"])
+    followers = set(data.get("followers", []))
+    following = set(data.get("following", []))
 
     mutual = followers.intersection(following)
-    fans = followers - following
     not_following_back = following - followers
+    fans = followers - following
 
     return {
         "followers": len(followers),
         "following": len(following),
-        "mutual": len(mutual),
-        "fans": len(fans),
-
-        "not_following_back": len(not_following_back),
-
-        # lists for templates
-        "fans_list": list(fans),
-        "not_following_back_list": list(not_following_back)
+        "mutual": list(mutual),
+        "not_following_back": list(not_following_back),
+        "fans": list(fans)
     }

@@ -1,41 +1,141 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>InstaLens Pro</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InstaLens — Intelligence Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
-<link rel="stylesheet" href="/static/css/style.css">
 </head>
-
 <body>
 
-<div class="d-flex">
+<div class="app">
 
-<div class="sidebar">
-<h3>InstaLens Pro</h3>
-<ul>
-<li><a href="/">Dashboard</a></li>
-<li><a href="/tables">Follower Tables</a></li>
-<li><a href="/connections">Connections</a></li>
-<li><a href="/network">Network Graph</a></li>
-</ul>
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+
+    <a href="{{ url_for('index') }}" class="logo">
+      <div class="logo-icon">IL</div>
+      <div class="logo-text-wrap">
+        <span class="logo-name">InstaLens</span>
+        <span class="logo-tag">Intelligence Suite</span>
+      </div>
+    </a>
+
+    <div class="nav-section-label">Navigation</div>
+
+    <nav>
+
+      <!-- Dashboard: only active when dashboard_id is available -->
+      {% if dashboard_id %}
+      <a href="{{ url_for('dashboard', dashboard_id=dashboard_id) }}">
+      {% else %}
+      <a href="{{ url_for('index') }}">
+      {% endif %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Dashboard
+      </a>
+
+      {% if dashboard_id %}
+      <a href="{{ url_for('connections', dashboard_id=dashboard_id) }}">
+      {% else %}
+      <a href="#" class="disabled">
+      {% endif %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Connections
+      </a>
+
+      {% if dashboard_id %}
+      <a href="{{ url_for('network', dashboard_id=dashboard_id) }}">
+      {% else %}
+      <a href="#" class="disabled">
+      {% endif %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+          <line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/>
+          <line x1="5" y1="19" x2="19" y2="19"/>
+        </svg>
+        Network Graph
+      </a>
+
+      {% if dashboard_id %}
+      <a href="{{ url_for('tables', dashboard_id=dashboard_id) }}">
+      {% else %}
+      <a href="#" class="disabled">
+      {% endif %}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18"/>
+        </svg>
+        Tables
+      </a>
+
+      <a href="{{ url_for('media_analysis') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        Media Analyzer
+      </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-pill">
+        <span class="status-dot"></span>
+        System Online
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <div class="header">
+      <div class="header-left">
+        <div class="title">InstaLens Dashboard</div>
+      </div>
+      <div class="header-right">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input class="search" placeholder="Search users, mentions, connections…" />
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+
+    <footer>
+      <span class="footer-left">InstaLens v1.0 — Instagram Analytics</span>
+      <span class="footer-right">Powered by Stypzy</span>
+    </footer>
+
+  </div>
+
 </div>
 
-<div class="content">
-{% block content %}{% endblock %}
-</div>
-
-</div>
-
-<footer style="text-align:center; margin-top:20px; padding:10px; font-size:14px;">
-Powered By Stypzy
-</footer>
+<script>
+// Mark active nav link based on current URL path
+document.querySelectorAll('.sidebar nav a').forEach(a => {
+  const href = a.getAttribute('href');
+  if (href && href !== '#' && window.location.pathname.startsWith(href.split('?')[0])) {
+    a.classList.add('active');
+  }
+});
+</script>
 
 </body>
 </html>
