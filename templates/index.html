@@ -127,4 +127,46 @@ zone.addEventListener('drop', e => {
 });
 </script>
 
+<script>
+
+const form = document.querySelector("form")
+const submitBtn = document.getElementById("submit-btn")
+const zoneBox = document.getElementById("upload-zone")
+const hintText = document.getElementById("submit-hint")
+
+form.addEventListener("submit", function(){
+
+    // disable button to prevent double click
+    submitBtn.disabled = true
+    submitBtn.innerHTML = "Processing..."
+
+    // change upload box to loading state
+    zoneBox.innerHTML = `
+        <div style="text-align:center;padding:40px;">
+            <div class="upload-icon selected">
+                <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke-width="2" stroke-dasharray="60">
+                        <animateTransform
+                            attributeName="transform"
+                            type="rotate"
+                            from="0 12 12"
+                            to="360 12 12"
+                            dur="1s"
+                            repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            </div>
+
+            <div class="upload-title">Processing Export</div>
+            <div class="upload-sub">Parsing Instagram data — please wait</div>
+        </div>
+    `
+
+    hintText.textContent = "Analyzing export..."
+    hintText.style.color = "#2dd4bf"
+
+})
+
+</script>
+
 {% endblock %}
