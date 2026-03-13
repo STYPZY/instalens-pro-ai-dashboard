@@ -4,99 +4,284 @@
 
 <div class="page-header">
   <div>
-    <h2>Media Provenance Report</h2>
-    <p>Forensic analysis results for <strong style="color: var(--accent-primary); font-family: var(--font-mono); font-size: 12px;">{{ report.filename }}</strong></p>
+    <h2>Media Analyzer</h2>
+    <p>Photos and videos from your Instagram export</p>
   </div>
-  <div class="page-actions">
-    <a href="{{ url_for('media_analysis') }}" class="btn btn-ghost btn-sm">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-      New Analysis
-    </a>
+  <a href="{{ url_for('dashboard', dashboard_id=dashboard_id) }}" class="btn btn-ghost btn-sm">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back
+  </a>
+</div>
+
+{% if not media or media.total == 0 %}
+<div class="card" style="text-align:center; padding: 48px; color: var(--text-muted); font-family: var(--font-mono); font-size: 13px;">
+  No media files found in your Instagram export.
+</div>
+{% else %}
+
+<!-- Stat cards -->
+<div class="stats-row" style="margin-bottom: 20px;">
+  <div class="stat-card blue">
+    <div class="stat-label"><span class="stat-dot"></span>Total Media</div>
+    <div class="stat-value">{{ media.total }}</div>
+    <div class="stat-sub">all files combined</div>
+  </div>
+  <div class="stat-card teal">
+    <div class="stat-label"><span class="stat-dot"></span>Photos</div>
+    <div class="stat-value">{{ media.photos }}</div>
+    <div class="stat-sub">image files</div>
+  </div>
+  <div class="stat-card violet">
+    <div class="stat-label"><span class="stat-dot"></span>Videos</div>
+    <div class="stat-value">{{ media.videos }}</div>
+    <div class="stat-sub">video files</div>
+  </div>
+  <div class="stat-card rose">
+    <div class="stat-label"><span class="stat-dot"></span>Total Size</div>
+    <div class="stat-value" style="font-size:26px;">{{ media.total_size_mb }}<span style="font-size:14px;opacity:0.6;"> MB</span></div>
+    <div class="stat-sub">combined file size</div>
   </div>
 </div>
 
-<div class="report-grid">
-
-  <!-- Hashes -->
-  <div class="card">
-    <div class="card-hd">
-      <div>
-        <div class="card-title">File Hashes</div>
-        <div class="card-sub">Cryptographic fingerprints</div>
-      </div>
-      <span class="card-badge">Integrity</span>
-    </div>
-    <div class="hash-row">
-      <span class="hash-key">MD5</span>
-      <span class="hash-val">{{ report.hashes.md5 }}</span>
-    </div>
-    <div class="hash-row">
-      <span class="hash-key">SHA-256</span>
-      <span class="hash-val">{{ report.hashes.sha256 }}</span>
-    </div>
-    <div class="hash-row">
-      <span class="hash-key">pHash</span>
-      <span class="hash-val">{{ report.perceptual_hash }}</span>
-    </div>
-  </div>
-
-  <!-- Metadata -->
-  <div class="card">
-    <div class="card-hd">
-      <div>
-        <div class="card-title">EXIF Metadata</div>
-        <div class="card-sub">Embedded file properties</div>
-      </div>
-      <span class="card-badge">{{ report.metadata|length }} fields</span>
-    </div>
-    {% for k, v in report.metadata.items() %}
-    <div class="meta-row">
-      <span class="meta-key">{{ k }}</span>
-      <span class="meta-val">{{ v }}</span>
-    </div>
-    {% endfor %}
-    {% if not report.metadata %}
-    <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);">No metadata found</div>
-    {% endif %}
-  </div>
-
-</div>
-
-<!-- Reverse Image Search -->
+<!-- Category breakdown table -->
 <div class="card">
   <div class="card-hd">
     <div>
-      <div class="card-title">Reverse Image Search</div>
-      <div class="card-sub">Find this image across the web</div>
+      <div class="card-title">Breakdown by Category</div>
+      <div class="card-sub">Photos and videos split across each content type</div>
     </div>
-    <span class="card-badge">3 Engines</span>
   </div>
-  <div class="search-links">
-    <a href="{{ search_links.google_lens }}" target="_blank" class="search-link-item">
-      <div class="search-link-icon">🔍</div>
-      <div>
-        <div style="font-weight: 500; font-size: 13px;">Google Lens</div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Search with Google's visual AI</div>
-      </div>
-      <span class="link-arrow">↗</span>
-    </a>
-    <a href="{{ search_links.bing }}" target="_blank" class="search-link-item">
-      <div class="search-link-icon">🌐</div>
-      <div>
-        <div style="font-weight: 500; font-size: 13px;">Bing Visual Search</div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Microsoft's image search engine</div>
-      </div>
-      <span class="link-arrow">↗</span>
-    </a>
-    <a href="{{ search_links.yandex }}" target="_blank" class="search-link-item">
-      <div class="search-link-icon">🟡</div>
-      <div>
-        <div style="font-weight: 500; font-size: 13px;">Yandex Images</div>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Yandex reverse image search</div>
-      </div>
-      <span class="link-arrow">↗</span>
-    </a>
+  <div style="margin: 0 20px 0; padding: 10px 16px; background: rgba(79,142,247,0.06); border: 1px solid rgba(79,142,247,0.15); border-radius: 8px; margin: 12px 20px 0; font-size: 11.5px; color: var(--text-secondary); line-height: 1.6;">
+    ℹ️ These counts reflect your <strong style="color:var(--text-primary)">complete Instagram lifetime archive</strong> — not just what's currently visible on your profile. This includes expired stories, archived posts, recently deleted content, and everything you've ever posted since account creation.
+  </div>
+
+  <table class="media-table">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>📸 Photos</th>
+        <th>🎥 Videos</th>
+        <th>Total</th>
+        <th>Share</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set cat_icons = {'Posts': '📸', 'Archived Posts': '🗃️', 'Stories': '⭕', 'Reels': '🎬', 'Direct Messages': '💬', 'Profile': '👤', 'Recently Deleted': '🗑️', 'Other': '📁'} %}
+      {% set cat_desc = {
+        'Posts': 'Photos & videos currently on your feed',
+        'Archived Posts': 'Posts you hid from your profile (still saved)',
+        'Stories': 'All stories ever posted — including expired ones',
+        'Reels': 'Short video reels (videos only, no photos)',
+        'Direct Messages': 'Media files shared in DMs',
+        'Profile': 'Your profile picture file(s)',
+        'Recently Deleted': 'Content deleted within the last 30 days',
+        'Other': 'Other media files in your export'
+      } %}
+      {% for cat, counts in (media.by_category or {}) | dictsort %}
+      {% set total = counts.photos + counts.videos %}
+      {% set pct = ((total / media.total) * 100) | round(1) %}
+      <tr>
+        <td>
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <span>
+              <span style="margin-right:8px;">{{ cat_icons.get(cat, '📁') }}</span>
+              <strong style="font-size:13px;">{{ cat }}</strong>
+            </span>
+            <span style="font-size:11px; color:var(--text-muted); padding-left:24px; font-family:var(--font-mono);">{{ cat_desc.get(cat, '') }}</span>
+          </div>
+        </td>
+        <td class="num">{{ counts.photos }}</td>
+        <td class="num">{{ counts.videos }}</td>
+        <td class="num bold">{{ total }}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; min-width:80px;">
+              <div style="height:100%; width:{{ pct }}%; background:linear-gradient(90deg,#4f8ef7,#a78bfa); border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono); width:38px; text-align:right;">{{ pct }}%</span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td><strong>Total</strong></td>
+        <td class="num bold">{{ media.photos }}</td>
+        <td class="num bold">{{ media.videos }}</td>
+        <td class="num bold">{{ media.total }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- Year breakdown -->
+{% if media.by_year %}
+<div class="card" style="margin-top:16px;">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Activity by Year</div>
+      <div class="card-sub">Media posted per year</div>
+    </div>
+  </div>
+  <table class="media-table">
+    <thead>
+      <tr>
+        <th>Year</th>
+        <th>📸 Photos</th>
+        <th>🎥 Videos</th>
+        <th>Total</th>
+        <th>Share</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set max_val = namespace(v=1) %}
+      {% for year, counts in media.by_year | dictsort %}
+        {% set t = counts.photos + counts.videos %}
+        {% if t > max_val.v %}{% set max_val.v = t %}{% endif %}
+      {% endfor %}
+      {% for year, counts in media.by_year | dictsort(reverse=true) %}
+      {% set total = counts.photos + counts.videos %}
+      {% set pct = ((total / max_val.v) * 100) | round %}
+      <tr>
+        <td>{{ year }}</td>
+        <td class="num">{{ counts.photos }}</td>
+        <td class="num">{{ counts.videos }}</td>
+        <td class="num bold">{{ total }}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; min-width:80px;">
+              <div style="height:100%; width:{{ pct }}%; background:linear-gradient(90deg,#2dd4bf,#4f8ef7); border-radius:3px;"></div>
+            </div>
+            <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono); width:38px; text-align:right;">{{ pct }}%</span>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endif %}
+
+<style>
+.media-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.media-table thead tr {
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.media-table th {
+  padding: 10px 20px;
+  text-align: left;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.media-table td {
+  padding: 12px 20px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.media-table tbody tr:last-child td { border-bottom: none; }
+.media-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.media-table tfoot tr td {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-bottom: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding-top: 14px;
+}
+.media-table td.num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.media-table td.bold, .media-table tfoot td.bold {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+</style>
+
+<!-- Photo Gallery -->
+{% if photos and photos | length > 0 %}
+<div class="card" style="margin-top:16px;">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Photo Gallery</div>
+      <div class="card-sub">{{ photos | length }} photos from your export — click to enlarge</div>
+    </div>
+    <select id="cat-filter" onchange="filterGallery()" style="background:var(--bg-elevated); border:1px solid var(--border); color:var(--text-secondary); padding:6px 12px; border-radius:6px; font-size:11px; font-family:var(--font-mono); cursor:pointer;">
+      <option value="all">All Categories</option>
+      {% set seen = [] %}
+      {% for p in photos %}
+        {% if p.category not in seen %}
+          {% set _ = seen.append(p.category) %}
+          <option value="{{ p.category }}">{{ p.category }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  <div class="photo-grid" id="photo-grid">
+    {% for p in photos %}
+    <div class="photo-cell" data-category="{{ p.category }}">
+      <img
+        src="{{ url_for('serve_media_file', dashboard_id=dashboard_id, file_index=loop.index0) }}"
+        alt="{{ p.name }}"
+        loading="lazy"
+        onerror="this.parentElement.style.display='none'"
+        onclick="openLightbox('{{ url_for('serve_media_file', dashboard_id=dashboard_id, file_index=loop.index0) }}', '{{ p.name }}', '{{ p.category }}')"
+      >
+      <div class="photo-overlay"><span class="photo-cat">{{ p.category }}</span></div>
+    </div>
+    {% endfor %}
   </div>
 </div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:12px;">
+  <img id="lb-img" style="max-width:90vw; max-height:85vh; border-radius:8px; object-fit:contain;">
+  <div style="display:flex; gap:16px; align-items:center;">
+    <span id="lb-name" style="font-size:11px; color:rgba(255,255,255,0.5); font-family:var(--font-mono);"></span>
+    <span id="lb-cat" style="font-size:10px; background:rgba(79,142,247,0.2); color:#4f8ef7; padding:2px 8px; border-radius:4px; font-family:var(--font-mono);"></span>
+  </div>
+  <span style="font-size:11px; color:rgba(255,255,255,0.3); font-family:var(--font-mono);">click anywhere or press Esc to close</span>
+</div>
+
+<style>
+.photo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:4px; padding:4px; }
+.photo-cell { position:relative; aspect-ratio:1; overflow:hidden; border-radius:6px; cursor:pointer; background:rgba(255,255,255,0.04); }
+.photo-cell img { width:100%; height:100%; object-fit:cover; transition:transform 0.25s; display:block; }
+.photo-cell:hover img { transform:scale(1.06); }
+.photo-overlay { position:absolute; bottom:0; left:0; right:0; padding:20px 8px 6px; background:linear-gradient(transparent,rgba(0,0,0,0.7)); opacity:0; transition:opacity 0.2s; }
+.photo-cell:hover .photo-overlay { opacity:1; }
+.photo-cat { font-size:9px; font-family:var(--font-mono); color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:0.05em; }
+</style>
+
+<script>
+function filterGallery() {
+  const val = document.getElementById('cat-filter').value;
+  document.querySelectorAll('.photo-cell').forEach(c => {
+    c.style.display = (val==='all' || c.dataset.category===val) ? '' : 'none';
+  });
+}
+function openLightbox(src, name, cat) {
+  event.stopPropagation();
+  document.getElementById('lb-img').src = src;
+  document.getElementById('lb-name').textContent = name;
+  document.getElementById('lb-cat').textContent = cat;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+function closeLightbox() { document.getElementById('lightbox').style.display = 'none'; }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeLightbox(); });
+</script>
+{% endif %}
 
 {% endblock %}

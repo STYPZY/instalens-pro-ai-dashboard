@@ -19,214 +19,151 @@
   </div>
 </div>
 
-<!-- Pass data to JS -->
 <script>
 const followersArr = {{ dashboard.connections.followers | tojson }};
 const followingArr = {{ dashboard.connections.following | tojson }};
 </script>
 
-<!-- Tabs -->
-<div class="dt-tabs">
-  <button class="dt-tab active" data-tab="followers">
-    Followers <span class="dt-badge" id="badge-followers">{{ dashboard.connections.followers | length }}</span>
-  </button>
-  <button class="dt-tab" data-tab="following">
-    Following <span class="dt-badge" id="badge-following">{{ dashboard.connections.following | length }}</span>
-  </button>
-  <button class="dt-tab" data-tab="notfollowback">
-    Not Following Back <span class="dt-badge rose" id="badge-notfollowback">—</span>
-  </button>
-  <button class="dt-tab" data-tab="fans">
-    Fans <span class="dt-badge violet" id="badge-fans">—</span>
-  </button>
-</div>
-
 <!-- Universal search -->
 <div class="dt-search-wrap">
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-  <input type="text" id="universal-search" placeholder="Search usernames..." autocomplete="off" />
-  <span id="search-count"></span>
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input type="text" id="universal-search" placeholder="Search username across all sections..." autocomplete="off" />
+  <span id="search-hint"></span>
 </div>
 
-<!-- List panels -->
-<div class="dt-panel" id="panel-followers"></div>
-<div class="dt-panel" id="panel-following" style="display:none"></div>
-<div class="dt-panel" id="panel-notfollowback" style="display:none"></div>
-<div class="dt-panel" id="panel-fans" style="display:none"></div>
+<!-- 2x2 grid — all 4 panels always visible -->
+<div class="dt-grid">
+
+  <div class="dt-panel">
+    <div class="dt-panel-head blue">
+      <span class="dph-dot"></span>
+      <span class="dph-title">Followers</span>
+      <span class="dph-count" id="sc-followers">{{ dashboard.connections.followers | length }} accounts</span>
+    </div>
+    <div class="dt-scroll" id="list-followers"></div>
+  </div>
+
+  <div class="dt-panel">
+    <div class="dt-panel-head teal">
+      <span class="dph-dot"></span>
+      <span class="dph-title">Following</span>
+      <span class="dph-count" id="sc-following">{{ dashboard.connections.following | length }} accounts</span>
+    </div>
+    <div class="dt-scroll" id="list-following"></div>
+  </div>
+
+  <div class="dt-panel">
+    <div class="dt-panel-head rose">
+      <span class="dph-dot"></span>
+      <span class="dph-title">Not Following Back</span>
+      <span class="dph-count" id="sc-notfollowback">— accounts</span>
+    </div>
+    <div class="dt-scroll" id="list-notfollowback"></div>
+  </div>
+
+  <div class="dt-panel">
+    <div class="dt-panel-head violet">
+      <span class="dph-dot"></span>
+      <span class="dph-title">Fans</span>
+      <span class="dph-count" id="sc-fans">— accounts</span>
+    </div>
+    <div class="dt-scroll" id="list-fans"></div>
+  </div>
+
+</div>
 
 <style>
-/* ── Tabs ── */
-.dt-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.dt-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-transform: uppercase;
-}
-.dt-tab:hover { border-color: var(--accent-primary); color: var(--text-primary); }
-.dt-tab.active { border-color: var(--accent-primary); color: var(--text-primary); background: rgba(79,142,247,0.08); }
-.dt-badge {
-  background: rgba(255,255,255,0.08);
-  color: var(--text-secondary);
-  padding: 1px 8px;
-  border-radius: 10px;
-  font-size: 10px;
-}
-.dt-badge.rose   { background: rgba(251,113,133,0.15); color: #fb7185; }
-.dt-badge.violet { background: rgba(167,139,250,0.15); color: #a78bfa; }
-.dt-tab.active .dt-badge { background: rgba(79,142,247,0.2); color: #4f8ef7; }
-
-/* ── Search ── */
 .dt-search-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 16px;
-  margin-bottom: 12px;
+  padding: 13px 18px;
+  margin-bottom: 16px;
   transition: border-color 0.2s;
 }
 .dt-search-wrap:focus-within { border-color: var(--accent-primary); }
 .dt-search-wrap svg { color: var(--text-muted); flex-shrink: 0; }
-.dt-search-wrap input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-family: var(--font-body);
-}
+.dt-search-wrap input { flex: 1; background: none; border: none; outline: none; color: var(--text-primary); font-size: 14px; font-family: var(--font-body); }
 .dt-search-wrap input::placeholder { color: var(--text-muted); }
-#search-count {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
+#search-hint { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
 
-/* ── List panel ── */
+/* 2×2 grid */
+.dt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 14px;
+}
 .dt-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 600px;
 }
+.dt-panel.has-match { border-color: #f59e0b; }
+
+/* Panel header */
+.dt-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  flex-shrink: 0;
+}
+.dt-panel-head.blue   { background: rgba(79,142,247,0.07);  }
+.dt-panel-head.teal   { background: rgba(45,212,191,0.07);  }
+.dt-panel-head.rose   { background: rgba(251,113,133,0.07); }
+.dt-panel-head.violet { background: rgba(167,139,250,0.07); }
+.dph-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dt-panel-head.blue   .dph-dot { background: #4f8ef7; }
+.dt-panel-head.teal   .dph-dot { background: #2dd4bf; }
+.dt-panel-head.rose   .dph-dot { background: #fb7185; }
+.dt-panel-head.violet .dph-dot { background: #a78bfa; }
+.dph-title { font-size: 11px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); flex: 1; }
+.dph-count { font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); }
+.dph-count.match { color: #f59e0b; font-weight: 600; }
+
+/* Scrollable list */
+.dt-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
+}
+.dt-scroll::-webkit-scrollbar { width: 4px; }
+.dt-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Rows */
 .dt-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  transition: background 0.15s;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  transition: background 0.12s;
 }
 .dt-row:last-child { border-bottom: none; }
-.dt-row:hover { background: rgba(255,255,255,0.03); }
-.dt-num {
-  width: 32px;
-  text-align: right;
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  flex-shrink: 0;
-}
-.dt-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4f8ef7 0%, #a78bfa 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: white;
-  flex-shrink: 0;
-  text-transform: uppercase;
-}
-.dt-username {
-  flex: 1;
-  font-size: 13px;
-  color: var(--text-primary);
-  text-decoration: none;
-}
+.dt-row:hover { background: rgba(255,255,255,0.04); }
+.dt-num { width: 26px; text-align: right; font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); flex-shrink: 0; }
+.dt-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; flex-shrink: 0; text-transform: uppercase; }
+.dt-username { flex: 1; font-size: 12px; color: var(--text-primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dt-username:hover { color: var(--accent-primary); }
-.dt-chip {
-  font-size: 10px;
-  font-family: var(--font-mono);
-  padding: 2px 9px;
-  border-radius: 4px;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-}
-.chip-mutual  { background: rgba(45,212,191,0.12); color: #2dd4bf; }
+.dt-username mark { background: rgba(245,158,11,0.3); color: #f59e0b; border-radius: 2px; padding: 0 2px; font-style: normal; }
+.dt-chip { font-size: 9px; font-family: var(--font-mono); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.03em; flex-shrink: 0; }
+.chip-mutual  { background: rgba(45,212,191,0.12);  color: #2dd4bf; }
 .chip-fan     { background: rgba(167,139,250,0.12); color: #a78bfa; }
 .chip-nfb     { background: rgba(251,113,133,0.12); color: #fb7185; }
-.chip-follows { background: rgba(79,142,247,0.12);  color: #4f8ef7; }
-.dt-ig-link {
-  opacity: 0.3;
-  transition: opacity 0.2s;
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 11px;
-}
-.dt-row:hover .dt-ig-link { opacity: 0.8; }
-
-.dt-empty {
-  padding: 48px 20px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-family: var(--font-mono);
-}
-
-/* Pagination */
-.dt-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
-  border-top: 1px solid rgba(255,255,255,0.05);
-  font-size: 12px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-.dt-page-btns { display: flex; gap: 6px; }
-.dt-page-btn {
-  padding: 4px 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 11px;
-  transition: all 0.15s;
-}
-.dt-page-btn:hover:not(:disabled) { border-color: var(--accent-primary); color: var(--text-primary); }
-.dt-page-btn:disabled { opacity: 0.3; cursor: default; }
-.dt-page-btn.current { border-color: var(--accent-primary); color: var(--accent-primary); background: rgba(79,142,247,0.1); }
+.dt-empty { padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 11px; font-family: var(--font-mono); }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-
   const fSet  = new Set(followersArr);
   const foSet = new Set(followingArr);
 
@@ -237,104 +174,68 @@ document.addEventListener('DOMContentLoaded', function() {
     fans:          followersArr.filter(u => !foSet.has(u)).map(u => ({ u, chip: ['They follow · you don\'t','fan'] })),
   };
 
-  // Update badges
-  document.getElementById('badge-notfollowback').textContent = datasets.notfollowback.length;
-  document.getElementById('badge-fans').textContent          = datasets.fans.length;
-
-  const PAGE_SIZE = 50;
-  const state = { tab: 'followers', query: '', pages: {followers:0,following:0,notfollowback:0,fans:0} };
+  const tabs = ['followers','following','notfollowback','fans'];
 
   function avatarColor(u) {
-    const colors = ['#4f8ef7','#2dd4bf','#a78bfa','#fb7185','#f59e0b','#10b981'];
-    let h = 0; for (let c of u) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
-    return colors[Math.abs(h) % colors.length];
+    const p = ['#4f8ef7','#2dd4bf','#a78bfa','#fb7185','#f59e0b','#10b981'];
+    let h = 0; for (const c of u) h = (h*31 + c.charCodeAt(0)) & 0xffffffff;
+    return p[Math.abs(h) % p.length];
   }
 
-  function renderPanel(tab) {
-    const panel = document.getElementById('panel-' + tab);
-    const q = state.query.toLowerCase();
-    const data = datasets[tab];
-    const filtered = q ? data.filter(d => d.u.toLowerCase().includes(q)) : data;
-    const page = state.pages[tab];
-    const total = filtered.length;
-    const start = page * PAGE_SIZE;
-    const slice = filtered.slice(start, start + PAGE_SIZE);
-
-    if (total === 0) {
-      panel.innerHTML = `<div class="dt-empty">${q ? 'No results for "' + q + '"' : 'No data'}</div>`;
-      return;
-    }
-
-    let html = slice.map((d, i) => {
-      const num = start + i + 1;
-      const initial = d.u[0] || '?';
-      const col = avatarColor(d.u);
-      return `<div class="dt-row">
-        <span class="dt-num">${num}</span>
-        <span class="dt-avatar" style="background:${col}">${initial}</span>
-        <a class="dt-username" href="https://instagram.com/${d.u}" target="_blank">${d.u}</a>
-        <span class="dt-chip chip-${d.chip[1]}">${d.chip[0]}</span>
-        <a class="dt-ig-link" href="https://instagram.com/${d.u}" target="_blank">↗</a>
-      </div>`;
-    }).join('');
-
-    // Pagination
-    const totalPages = Math.ceil(total / PAGE_SIZE);
-    if (totalPages > 1) {
-      const prevDis = page === 0 ? 'disabled' : '';
-      const nextDis = page >= totalPages - 1 ? 'disabled' : '';
-      const showing = `${start + 1}–${Math.min(start + PAGE_SIZE, total)} of ${total}`;
-      html += `<div class="dt-pagination">
-        <span>${showing}</span>
-        <div class="dt-page-btns">
-          <button class="dt-page-btn" ${prevDis} onclick="changePage('${tab}',-1)">← Prev</button>
-          <button class="dt-page-btn current">${page + 1} / ${totalPages}</button>
-          <button class="dt-page-btn" ${nextDis} onclick="changePage('${tab}',1)">Next →</button>
-        </div>
-      </div>`;
-    } else {
-      html += `<div class="dt-pagination"><span>${total} accounts</span></div>`;
-    }
-
-    panel.innerHTML = html;
-
-    // Update search count
-    if (q) {
-      document.getElementById('search-count').textContent = total + ' result' + (total !== 1 ? 's' : '');
-    } else {
-      document.getElementById('search-count').textContent = '';
-    }
+  function hl(text, q) {
+    if (!q) return text;
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i === -1) return text;
+    return text.slice(0,i)+'<mark>'+text.slice(i,i+q.length)+'</mark>'+text.slice(i+q.length);
   }
 
-  window.changePage = function(tab, dir) {
-    const q = state.query.toLowerCase();
-    const total = Math.ceil((q ? datasets[tab].filter(d=>d.u.toLowerCase().includes(q)) : datasets[tab]).length / PAGE_SIZE);
-    state.pages[tab] = Math.max(0, Math.min(state.pages[tab] + dir, total - 1));
-    renderPanel(tab);
-  };
+  function render(q) {
+    let total = 0;
+    tabs.forEach(tab => {
+      const data     = datasets[tab];
+      const filtered = q ? data.filter(d => d.u.toLowerCase().includes(q.toLowerCase())) : data;
+      const list     = document.getElementById('list-' + tab);
+      const sc       = document.getElementById('sc-' + tab);
+      const panel    = list.closest('.dt-panel');
 
-  function switchTab(tab) {
-    state.tab = tab;
-    document.querySelectorAll('.dt-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    ['followers','following','notfollowback','fans'].forEach(t => {
-      document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
+      total += filtered.length;
+
+      // Update count label
+      if (q) {
+        sc.textContent = filtered.length ? filtered.length + ' match' + (filtered.length !== 1 ? 'es' : '') : 'no matches';
+        sc.className   = filtered.length ? 'dph-count match' : 'dph-count';
+        panel.classList.toggle('has-match', filtered.length > 0);
+      } else {
+        sc.textContent = data.length + ' accounts';
+        sc.className   = 'dph-count';
+        panel.classList.remove('has-match');
+      }
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="dt-empty">${q ? 'No matches' : 'No data'}</div>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map((d, i) =>
+        `<div class="dt-row">
+          <span class="dt-num">${i+1}</span>
+          <span class="dt-avatar" style="background:${avatarColor(d.u)}">${d.u[0].toUpperCase()}</span>
+          <a class="dt-username" href="https://instagram.com/${d.u}" target="_blank" title="${d.u}">${hl(d.u, q)}</a>
+          <span class="dt-chip chip-${d.chip[1]}">${d.chip[0]}</span>
+        </div>`
+      ).join('');
     });
-    renderPanel(tab);
-  }
 
-  document.querySelectorAll('.dt-tab').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
+    document.getElementById('search-hint').textContent = q
+      ? total + ' result' + (total !== 1 ? 's' : '') + ' across all sections'
+      : '';
+  }
 
   document.getElementById('universal-search').addEventListener('input', function() {
-    state.query = this.value;
-    Object.keys(state.pages).forEach(k => state.pages[k] = 0);
-    renderPanel(state.tab);
+    render(this.value.trim());
   });
 
-  // Auto-open tab from URL ?tab=
-  const urlTab = new URLSearchParams(window.location.search).get('tab');
-  switchTab(['followers','following','notfollowback','fans'].includes(urlTab) ? urlTab : 'followers');
+  render('');
 });
 </script>
 

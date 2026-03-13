@@ -3,10 +3,12 @@
 {% block content %}
 
 {% set conn = dashboard.connections %}
-{% set followers_list = conn.followers if conn.followers is defined else [] %}
-{% set following_list = conn.following if conn.following is defined else [] %}
-{% set likes_list     = conn.likes     if conn.likes     is defined else [] %}
-{% set comments_list  = conn.comments  if conn.comments  is defined else [] %}
+{% set followers_list        = conn.followers         if conn.followers         is defined else [] %}
+{% set following_list        = conn.following         if conn.following         is defined else [] %}
+{% set likes_list            = conn.likes             if conn.likes             is defined else [] %}
+{% set comments_list         = conn.comments          if conn.comments          is defined else [] %}
+{% set threads_followers_list = conn.threads_followers if conn.threads_followers is defined else [] %}
+{% set threads_following_list = conn.threads_following if conn.threads_following is defined else [] %}
 
 <div class="page-header">
   <div>
@@ -15,7 +17,11 @@
   </div>
   <div class="page-actions">
     <a href="{{ url_for('export_followers', dashboard_id=dashboard_id) }}" class="export-btn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
       Download Followers CSV
     </a>
   </div>
@@ -23,58 +29,93 @@
 
 <!-- Stat cards -->
 <div class="stats-row">
+
   <div class="stat-card blue">
     <div class="stat-label"><span class="stat-dot"></span>Followers</div>
     <div class="stat-value">{{ followers_list | length }}</div>
     <div class="stat-sub">accounts following you</div>
   </div>
+
   <div class="stat-card teal">
     <div class="stat-label"><span class="stat-dot"></span>Following</div>
     <div class="stat-value">{{ following_list | length }}</div>
     <div class="stat-sub">accounts you follow</div>
   </div>
+
   <div class="stat-card violet">
     <div class="stat-label"><span class="stat-dot"></span>Likes</div>
     <div class="stat-value">{{ likes_list | length }}</div>
     <div class="stat-sub">liked posts found</div>
   </div>
+
   <div class="stat-card rose">
     <div class="stat-label"><span class="stat-dot"></span>Comments</div>
     <div class="stat-value">{{ comments_list | length }}</div>
     <div class="stat-sub">comments found</div>
   </div>
+
 </div>
+
+<!-- Threads Section -->
+{% if threads_followers_list | length > 0 or threads_following_list | length > 0 %}
+<div class="section-label" style="margin-top:8px;">
+  Threads Data
+</div>
+
+<div class="stats-row" style="margin-bottom:20px;">
+
+  <div class="stat-card" style="border-color: rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted);">
+      <span class="stat-dot" style="background:#a78bfa;"></span>Threads Followers
+    </div>
+    <div class="stat-value">{{ threads_followers_list | length }}</div>
+    <div class="stat-sub">on Threads</div>
+  </div>
+
+  <div class="stat-card" style="border-color: rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted);">
+      <span class="stat-dot" style="background:#2dd4bf;"></span>Threads Following
+    </div>
+    <div class="stat-value">{{ threads_following_list | length }}</div>
+    <div class="stat-sub">on Threads</div>
+  </div>
+
+</div>
+{% endif %}
 
 <!-- Charts -->
 <div class="charts-grid">
+
   <div class="chart-card">
     <div class="chart-label">Relationship Breakdown</div>
     <canvas id="relationshipChart"></canvas>
   </div>
+
   <div class="chart-card">
     <div class="chart-label">Interaction Summary</div>
     <canvas id="interactionChart"></canvas>
   </div>
+
 </div>
 
 <div class="section-label">Quick Navigation</div>
 
 <div class="quick-nav">
+
   <a href="{{ url_for('connections', dashboard_id=dashboard_id) }}" class="quick-link">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     View Connections
   </a>
+
   <a href="{{ url_for('network', dashboard_id=dashboard_id) }}" class="quick-link">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
     Network Graph
   </a>
+
   <a href="{{ url_for('tables', dashboard_id=dashboard_id) }}" class="quick-link">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18"/></svg>
     Data Tables
   </a>
+
 </div>
 
-<!-- Inject counts directly as plain integers — no dict access issues -->
 <script>
 window.dashboard_data = {
   followers: {{ followers_list | length }},
