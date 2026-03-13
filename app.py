@@ -231,6 +231,46 @@ def media_analysis():
 
     return render_template("media_upload.html", error=None)
 
+@app.route("/metadata-analyzer", methods=["GET", "POST"])
+def metadata_analyzer():
+
+    if request.method == "POST":
+
+        file = request.files.get("file")
+
+        if not file or file.filename == "":
+            return render_template("metadata_upload.html", error="No file selected.")
+
+        original_name = secure_filename(file.filename)
+        ext = os.path.splitext(original_name)[1].lower()
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+        file.save(temp_file.name)
+
+        try:
+
+            from analytics.forensic_analyzer import analyze_file
+
+            report = analyze_file(temp_file.name)
+
+            return render_template(
+                "metadata_report.html",
+                report=report,
+                filename=original_name
+            )
+
+        except Exception as e:
+            return render_template("metadata_upload.html", error=str(e))
+
+        finally:
+            try:
+                os.unlink(temp_file.name)
+            except Exception:
+                pass
+
+    return render_template("metadata_upload.html", error=None)
+
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
