@@ -21,7 +21,7 @@ if (window.network_data) {
   })
 }
 
-const data = { nodes: nodes, edges: edges }
+const graphData = { nodes: nodes, edges: edges }
 
 const options = {
   physics: {
@@ -46,4 +46,4 @@ const options = {
   }
 }
 
-window._visNetwork = new vis.Network(container, data, options)
+window._visNetwork = new vis.Network(container, graphData, options)

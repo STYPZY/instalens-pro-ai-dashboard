@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set srch = data.search_history %}
+{% set lgn  = data.login %}
+{% set sto  = data.stories %}
+{% set loc  = data.location %}
+
+<div class="page-header">
+  <div><h2>Activity & Security</h2><p>Search history, login activity, stories and location data</p></div>
+  <div class="page-actions">
+    <a href="{{ url_for('snapchat_dashboard', dashboard_id=dashboard_id) }}" class="btn btn-ghost btn-sm">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back
+    </a>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card blue"><div class="stat-label"><span class="stat-dot"></span>Searches</div><div class="stat-value">{{ srch.total }}</div><div class="stat-sub">{{ srch.unique }} unique terms</div></div>
+  <div class="stat-card teal"><div class="stat-label"><span class="stat-dot"></span>Login Events</div><div class="stat-value">{{ lgn.total }}</div><div class="stat-sub">{{ lgn.unique_ips }} unique IPs</div></div>
+  <div class="stat-card violet"><div class="stat-label"><span class="stat-dot"></span>Stories Posted</div><div class="stat-value">{{ sto.total }}</div><div class="stat-sub">my story history</div></div>
+  <div class="stat-card rose"><div class="stat-label"><span class="stat-dot"></span>Location Points</div><div class="stat-value">{{ loc.total }}</div><div class="stat-sub">Snap Map entries</div></div>
+</div>
+
+<div class="report-grid">
+
+  {% if srch.top_terms %}
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">Top Search Terms</div><div class="card-sub">Most frequently searched</div></div><span class="card-badge">Top 20</span></div>
+    {% for item in srch.top_terms %}
+    <div class="meta-row">
+      <div class="meta-key" style="font-family:var(--font-mono);font-size:11px;color:var(--text-primary);flex:1;text-align:left;">{{ item.term }}</div>
+      <div class="meta-val"><span style="background:var(--accent-soft);color:var(--accent-primary);font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:4px;">{{ item.count }}×</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">Login Security</div><div class="card-sub">Devices and countries detected</div></div><span class="card-badge">Security</span></div>
+    <div class="meta-row"><div class="meta-key">Total Logins</div><div class="meta-val">{{ lgn.total }}</div></div>
+    <div class="meta-row"><div class="meta-key">Unique IPs</div><div class="meta-val" style="color:var(--teal);">{{ lgn.unique_ips }}</div></div>
+    {% if lgn.countries %}
+    <div class="meta-row"><div class="meta-key">Countries</div><div class="meta-val">{{ lgn.countries | join(", ") }}</div></div>
+    {% endif %}
+    {% if lgn.devices %}
+    <div style="padding-top:12px;">
+      <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Devices</div>
+      {% for dev in lgn.devices %}
+      <div class="meta-row"><div class="meta-val" style="font-size:11px;">{{ dev }}</div></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if lgn.recent %}
+    <div style="padding-top:12px;">
+      <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Recent Logins</div>
+      {% for l in lgn.recent[:8] %}
+      <div class="meta-row">
+        <div class="meta-key" style="font-size:10px;">{{ l.get("Created","") or l.get("Date","") or "—" }}</div>
+        <div class="meta-val" style="font-size:10px;">{{ l.get("IP","") }} {{ l.get("Country","") }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if sto.by_year %}
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">Stories by Year</div><div class="card-sub">My Story posts over time</div></div></div>
+    {% for year, count in sto.by_year.items() %}
+    <div class="meta-row">
+      <div class="meta-key">{{ year }}</div>
+      <div class="meta-val">{{ count }} stories</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if loc.recent %}
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">Location History</div><div class="card-sub">Recent Snap Map entries</div></div>
+    <span class="card-badge" style="color:var(--rose);border-color:rgba(251,113,133,0.3);background:rgba(251,113,133,0.08);">{{ loc.total }} total</span></div>
+    {% for l in loc.recent %}
+    <div class="meta-row">
+      <div class="meta-key" style="font-size:10px;">{{ l.get("Date","—")[:16] if l.get("Date") else "—" }}</div>
+      <div class="meta-val" style="font-size:10px;">Lat: {{ l.get("Latitude","") }} Lon: {{ l.get("Longitude","") }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

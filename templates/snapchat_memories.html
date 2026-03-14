@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set mem = data.memories %}
+
+<div class="page-header">
+  <div><h2>Memories</h2><p>Your saved Snapchat photos and videos</p></div>
+  <div class="page-actions">
+    <a href="{{ url_for('snapchat_dashboard', dashboard_id=dashboard_id) }}" class="btn btn-ghost btn-sm">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back
+    </a>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card blue"><div class="stat-label"><span class="stat-dot"></span>Total Memories</div><div class="stat-value">{{ mem.total }}</div><div class="stat-sub">saved media files</div></div>
+  <div class="stat-card teal"><div class="stat-label"><span class="stat-dot"></span>Photos</div><div class="stat-value">{{ mem.photos }}</div><div class="stat-sub">image memories</div></div>
+  <div class="stat-card violet"><div class="stat-label"><span class="stat-dot"></span>Videos</div><div class="stat-value">{{ mem.videos }}</div><div class="stat-sub">video memories</div></div>
+  <div class="stat-card rose"><div class="stat-label"><span class="stat-dot"></span>With Location</div><div class="stat-value">{{ mem.location_count }}</div><div class="stat-sub">have GPS data</div></div>
+</div>
+
+<div class="report-grid">
+
+  {% if mem.by_year %}
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">By Year</div><div class="card-sub">Memories created per year</div></div></div>
+    {% for year, counts in mem.by_year.items() %}
+    <div class="meta-row">
+      <div class="meta-key">{{ year }}</div>
+      <div class="meta-val">{{ counts.photos }} photos · {{ counts.videos }} videos</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if mem.locations %}
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">Location-Tagged Memories</div><div class="card-sub">Memories with GPS coordinates</div></div></div>
+    {% for loc in mem.locations[:15] %}
+    <div class="meta-row">
+      <div class="meta-key" style="font-size:10px;">{{ loc.date[:10] if loc.date else '—' }}</div>
+      <div class="meta-val" style="font-size:11px;">{{ loc.location }}</div>
+    </div>
+    {% endfor %}
+    {% if mem.location_count > 15 %}
+    <div style="padding:8px 0;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);">+{{ mem.location_count - 15 }} more locations</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+{% if not mem.total %}
+<div class="card" style="text-align:center;padding:60px;">
+  <div style="font-size:40px;margin-bottom:16px;">📸</div>
+  <div class="card-title">No memories found</div>
+  <div class="card-sub" style="margin-top:6px;">Your export may not include a memories_history.json file.</div>
+</div>
+{% endif %}
+
+{% endblock %}

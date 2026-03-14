@@ -14,8 +14,3 @@ def create_dashboard(data):
 
 def get_dashboard(dashboard_id):
     return dashboard_cache.get(dashboard_id)
-
-
-def delete_dashboard(dashboard_id):
-    if dashboard_id in dashboard_cache:
-        del dashboard_cache[dashboard_id]

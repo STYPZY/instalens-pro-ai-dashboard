@@ -1,15 +1,19 @@
-def ghost_followers(data):
-
-    followers = set(data.get("followers", []))
-    likes = set(data.get("likes", []))
-    comments = set(data.get("comments", []))
+def ghost_followers(connections):
+    """
+    Returns followers who have never liked or commented on any posts.
+    Only meaningful when likes/comments contain actual usernames.
+    """
+    followers = set(connections.get("followers", []))
+    likes = set(connections.get("likes", []))
+    comments = set(connections.get("comments", []))
 
     interactions = likes.union(comments)
 
-    ghosts = []
+    ghosts = [user for user in followers if user not in interactions]
 
-    for user in followers:
-        if user not in interactions:
-            ghosts.append(user)
-
-    return ghosts
+    return {
+        "ghosts": sorted(ghosts),
+        "ghost_count": len(ghosts),
+        "total_followers": len(followers),
+        "ghost_percentage": round((len(ghosts) / len(followers) * 100), 1) if followers else 0,
+    }

@@ -18,6 +18,12 @@
     <span class="card-badge">New Analysis</span>
   </div>
 
+  {% if error %}
+  <div style="background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#fb7185;font-family:var(--font-mono);">
+    ⚠ {{ error }}
+  </div>
+  {% endif %}
+
   <form method="POST" enctype="multipart/form-data" action="{{ url_for('index') }}">
     <div class="upload-zone" id="upload-zone">
       <input type="file" name="file" id="file-input" required accept=".zip,.json">
@@ -128,7 +134,6 @@ zone.addEventListener('drop', e => {
 </script>
 
 <script>
-
 const form = document.querySelector("form")
 const submitBtn = document.getElementById("submit-btn")
 const zoneBox = document.getElementById("upload-zone")
@@ -136,37 +141,38 @@ const hintText = document.getElementById("submit-hint")
 
 form.addEventListener("submit", function(){
 
-    // disable button to prevent double click
+    // Disable button to prevent double-click
     submitBtn.disabled = true
     submitBtn.innerHTML = "Processing..."
-
-    // change upload box to loading state
-    zoneBox.innerHTML = `
-        <div style="text-align:center;padding:40px;">
-            <div class="upload-icon selected">
-                <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke-width="2" stroke-dasharray="60">
-                        <animateTransform
-                            attributeName="transform"
-                            type="rotate"
-                            from="0 12 12"
-                            to="360 12 12"
-                            dur="1s"
-                            repeatCount="indefinite"/>
-                    </circle>
-                </svg>
-            </div>
-
-            <div class="upload-title">Processing Export</div>
-            <div class="upload-sub">Parsing Instagram data — please wait</div>
-        </div>
-    `
-
     hintText.textContent = "Analyzing export..."
     hintText.style.color = "#2dd4bf"
 
-})
+    // IMPORTANT: Do NOT replace zoneBox.innerHTML — that destroys the
+    // <input type="file"> before the browser can read the file data,
+    // causing Flask to receive an empty upload. Instead overlay a spinner.
+    zoneBox.style.position = "relative"
+    const overlay = document.createElement("div")
+    overlay.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-surface);border-radius:inherit;z-index:10;"
+    overlay.innerHTML = `
+        <div class="upload-icon selected">
+            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" fill="none">
+                <circle cx="12" cy="12" r="10" stroke-width="2" stroke-dasharray="60">
+                    <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 12 12"
+                        to="360 12 12"
+                        dur="1s"
+                        repeatCount="indefinite"/>
+                </circle>
+            </svg>
+        </div>
+        <div class="upload-title" style="margin-top:12px;">Processing Export</div>
+        <div class="upload-sub">Parsing Instagram data — please wait</div>
+    `
+    zoneBox.appendChild(overlay)
 
+})
 </script>
 
 {% endblock %}

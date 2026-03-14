@@ -3,114 +3,107 @@
 {% block content %}
 
 <div class="page-header">
-<div>
-<h2>Metadata Report</h2>
-<p>Forensic metadata and hash results</p>
+  <div>
+    <h2>Media Report</h2>
+    <p>Photos and videos from your Instagram export</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('dashboard', dashboard_id=dashboard_id) }}" class="btn btn-ghost btn-sm">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back
+    </a>
+  </div>
 </div>
+
+{% if media and media.total > 0 %}
+
+<div class="stats-row">
+  <div class="stat-card blue">
+    <div class="stat-label"><span class="stat-dot"></span>Total Files</div>
+    <div class="stat-value">{{ media.total }}</div>
+    <div class="stat-sub">media files found</div>
+  </div>
+  <div class="stat-card teal">
+    <div class="stat-label"><span class="stat-dot"></span>Photos</div>
+    <div class="stat-value">{{ media.photos }}</div>
+    <div class="stat-sub">image files</div>
+  </div>
+  <div class="stat-card violet">
+    <div class="stat-label"><span class="stat-dot"></span>Videos</div>
+    <div class="stat-value">{{ media.videos }}</div>
+    <div class="stat-sub">video files</div>
+  </div>
+  <div class="stat-card rose">
+    <div class="stat-label"><span class="stat-dot"></span>Total Size</div>
+    <div class="stat-value">{{ media.total_size_mb }} MB</div>
+    <div class="stat-sub">uncompressed</div>
+  </div>
 </div>
 
 <div class="report-grid">
 
-<div class="card">
+  {% if media.by_category %}
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">By Category</div>
+        <div class="card-sub">Breakdown by content type</div>
+      </div>
+    </div>
+    {% for cat, counts in media.by_category.items() %}
+    <div class="meta-row">
+      <div class="meta-key">{{ cat }}</div>
+      <div class="meta-val">{{ counts.photos }} photos · {{ counts.videos }} videos</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
-<div class="card-hd">
-<div>
-<div class="card-title">File Hashes</div>
-<div class="card-sub">Digital fingerprint</div>
-</div>
-</div>
+  {% if media.by_year %}
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">By Year</div>
+        <div class="card-sub">Activity over time</div>
+      </div>
+    </div>
+    {% for year, counts in media.by_year | dictsort %}
+    <div class="meta-row">
+      <div class="meta-key">{{ year }}</div>
+      <div class="meta-val">{{ counts.photos }} photos · {{ counts.videos }} videos</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
-<div class="hash-row">
-<div class="hash-key">MD5</div>
-<div class="hash-val">{{ report.md5 }}</div>
-</div>
+  {% if media.largest_files %}
+  <div class="card" style="grid-column: 1 / -1;">
+    <div class="card-hd">
+      <div>
+        <div class="card-title">Largest Files</div>
+        <div class="card-sub">Top 5 by file size</div>
+      </div>
+    </div>
+    {% for f in media.largest_files %}
+    <div class="meta-row">
+      <div class="meta-key" style="font-family:var(--font-mono);font-size:11px;color:var(--text-primary);flex:1;text-align:left;">{{ f.name }}</div>
+      <div class="meta-val">
+        <span style="color:var(--text-muted);font-size:10px;margin-right:10px;">{{ f.type }}</span>
+        {{ (f.size / 1024 / 1024) | round(2) }} MB
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
-<div class="hash-row">
-<div class="hash-key">SHA1</div>
-<div class="hash-val">{{ report.sha1 }}</div>
-</div>
-
-<div class="hash-row">
-<div class="hash-key">SHA256</div>
-<div class="hash-val">{{ report.sha256 }}</div>
-</div>
-
-</div>
-
-
-<div class="card">
-
-<div class="card-hd">
-<div>
-<div class="card-title">Source Detection</div>
-<div class="card-sub">Estimated platform origin</div>
-</div>
-</div>
-
-<div class="meta-row">
-<div class="meta-key">File Type</div>
-<div class="meta-val">{{ report.type }}</div>
-</div>
-
-<div class="meta-row">
-<div class="meta-key">Possible Platform</div>
-<div class="meta-val">{{ report.platform_guess }}</div>
-</div>
-
-</div>
-
-
-{% if report.location %}
-<div class="card">
-
-<div class="card-hd">
-<div>
-<div class="card-title">Location Data</div>
-<div class="card-sub">GPS metadata</div>
-</div>
 </div>
 
-<div class="meta-row">
-<div class="meta-key">Latitude</div>
-<div class="meta-val">{{ report.location.latitude }}</div>
-</div>
-
-<div class="meta-row">
-<div class="meta-key">Longitude</div>
-<div class="meta-val">{{ report.location.longitude }}</div>
-</div>
-
-<div class="meta-row">
-<div class="meta-key">Map</div>
-<div class="meta-val">
-<a href="{{ report.location.map_link }}" target="_blank">Open in Google Maps</a>
-</div>
-</div>
-
+{% else %}
+<div class="card" style="text-align:center;padding:60px;">
+  <div style="font-size:40px;margin-bottom:16px;">📂</div>
+  <div class="card-title">No media files found</div>
+  <div class="card-sub" style="margin-top:6px;">Your export may not include a media folder.</div>
 </div>
 {% endif %}
-
-
-<div class="card">
-
-<div class="card-hd">
-<div>
-<div class="card-title">Metadata</div>
-<div class="card-sub">Extracted file information</div>
-</div>
-</div>
-
-{% for key,value in report.metadata.items() %}
-
-<div class="meta-row">
-<div class="meta-key">{{ key }}</div>
-<div class="meta-val">{{ value }}</div>
-</div>
-
-{% endfor %}
-
-</div>
-
-</div>
 
 {% endblock %}

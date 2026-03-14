@@ -20,15 +20,4 @@ def read_instagram_zip(zip_path):
             except Exception:
                 continue
 
-    # Print file tree to console for debugging
-    print("\n=== EXTRACTED ZIP FILE TREE ===")
-    for root, dirs, files in os.walk(temp_dir):
-        level = root.replace(temp_dir, '').count(os.sep)
-        indent = ' ' * 2 * level
-        print(f"{indent}{os.path.basename(root)}/")
-        subindent = ' ' * 2 * (level + 1)
-        for f in files:
-            print(f"{subindent}{f}")
-    print("=== END FILE TREE ===\n")
-
     return temp_dir

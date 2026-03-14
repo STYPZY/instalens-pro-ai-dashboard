@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block content %}
+{% set chat = data.chat_history %}
+
+<div class="page-header">
+  <div><h2>Chat History</h2><p>Message breakdown across all your Snapchat conversations</p></div>
+  <div class="page-actions">
+    <a href="{{ url_for('snapchat_export_chat_csv', dashboard_id=dashboard_id) }}" class="export-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </a>
+    <a href="{{ url_for('snapchat_dashboard', dashboard_id=dashboard_id) }}" class="btn btn-ghost btn-sm">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back
+    </a>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card blue"><div class="stat-label"><span class="stat-dot"></span>Total Messages</div><div class="stat-value">{{ chat.total_messages }}</div><div class="stat-sub">all time</div></div>
+  <div class="stat-card teal"><div class="stat-label"><span class="stat-dot"></span>Sent</div><div class="stat-value">{{ chat.total_sent }}</div><div class="stat-sub">messages you sent</div></div>
+  <div class="stat-card violet"><div class="stat-label"><span class="stat-dot"></span>Received</div><div class="stat-value">{{ chat.total_received }}</div><div class="stat-sub">messages received</div></div>
+  <div class="stat-card rose"><div class="stat-label"><span class="stat-dot"></span>Conversations</div><div class="stat-value">{{ chat.total_conversations }}</div><div class="stat-sub">unique chats</div></div>
+</div>
+
+{% if chat.conversations %}
+<div class="card">
+  <div class="card-hd">
+    <div><div class="card-title">Top Conversations</div><div class="card-sub">Ranked by total message count</div></div>
+    <span class="card-badge">{{ chat.total_conversations }} total</span>
+  </div>
+  <div style="padding:0 0 14px;">
+    <input type="text" id="chat-search" placeholder="Search conversations..." style="width:100%;background:var(--bg-raised);border:1px solid var(--border-default);color:var(--text-primary);padding:8px 12px;border-radius:8px;font-size:13px;outline:none;font-family:var(--font-body);" />
+  </div>
+  <div style="overflow-x:auto;">
+    <table id="chat-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Sent</th><th>Received</th><th>Total</th><th>Media</th><th>Last Active</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for conv in chat.conversations %}
+        <tr>
+          <td style="color:var(--text-muted);font-family:var(--font-mono);font-size:10px;">{{ loop.index }}</td>
+          <td style="font-weight:500;color:var(--text-primary);">{{ conv.name }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#4f8ef7;">{{ conv.sent }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#2dd4bf;">{{ conv.received }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-primary);font-weight:600;">{{ conv.sent + conv.received }}</td>
+          <td style="font-family:var(--font-mono);font-size:11px;color:#a78bfa;">{{ conv.media }}</td>
+          <td style="font-size:11px;color:var(--text-muted);">{{ conv.last_active[:10] if conv.last_active else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+document.getElementById("chat-search").addEventListener("input", function(){
+  const q = this.value.toLowerCase();
+  document.querySelectorAll("#chat-table tbody tr").forEach(row => {
+    row.style.display = row.cells[1].textContent.toLowerCase().includes(q) ? "" : "none";
+  });
+});
+</script>
+{% else %}
+<div class="card" style="text-align:center;padding:60px;">
+  <div style="font-size:40px;margin-bottom:16px;">💬</div>
+  <div class="card-title">No chat history found</div>
+  <div class="card-sub" style="margin-top:6px;">Your export may not include a chat_history.json file.</div>
+</div>
+{% endif %}
+
+{% endblock %}

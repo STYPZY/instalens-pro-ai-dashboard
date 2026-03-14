@@ -98,6 +98,45 @@
 
 </div>
 
+{% if dashboard.ghosts and dashboard.ghosts.ghost_count > 0 %}
+<div class="section-label" style="margin-top:8px;">Ghost Followers</div>
+<div class="stats-row" style="margin-bottom:20px;">
+  <div class="stat-card rose">
+    <div class="stat-label"><span class="stat-dot"></span>Ghost Followers</div>
+    <div class="stat-value">{{ dashboard.ghosts.ghost_count }}</div>
+    <div class="stat-sub">follow you but never interact</div>
+  </div>
+  <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#fb7185;"></span>Ghost Rate</div>
+    <div class="stat-value">{{ dashboard.ghosts.ghost_percentage }}%</div>
+    <div class="stat-sub">of your followers are ghosts</div>
+  </div>
+</div>
+{% endif %}
+
+{% if dashboard.ranking and dashboard.ranking | length > 0 %}
+<div class="section-label" style="margin-top:8px;">Top Interactors</div>
+<div class="card" style="margin-bottom:22px;">
+  <div class="card-hd">
+    <div>
+      <div class="card-title">Most Engaged Followers</div>
+      <div class="card-sub">Ranked by likes (1pt) and comments (2pts)</div>
+    </div>
+    <span class="card-badge">Engagement</span>
+  </div>
+  {% for entry in dashboard.ranking[:10] %}
+  <div class="meta-row">
+    <div class="meta-key" style="font-family:var(--font-mono);font-size:11px;color:var(--text-primary);flex:1;text-align:left;">
+      <a href="https://instagram.com/{{ entry.user }}" target="_blank" style="color:var(--text-primary);">{{ entry.user }}</a>
+    </div>
+    <div class="meta-val">
+      <span style="background:var(--accent-soft);color:var(--accent-primary);font-family:var(--font-mono);font-size:10px;padding:2px 8px;border-radius:4px;">{{ entry.score }} pts</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="section-label">Quick Navigation</div>
 
 <div class="quick-nav">

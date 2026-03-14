@@ -73,19 +73,38 @@ def extract_usernames(data):
     return []
 
 
-def count_interactions(data):
+def extract_interaction_usernames(data):
+    """
+    Extracts usernames from likes/comments JSON files.
+    These have a different structure: list of entries each with string_list_data
+    containing the username of the post author or commenter.
+    Returns a flat list of usernames (may include duplicates for multiple interactions).
+    """
+    usernames = []
 
     if isinstance(data, list):
-        return len(data)
+        for entry in data:
+            if not isinstance(entry, dict):
+                continue
+            sld = entry.get("string_list_data", [])
+            for item in sld:
+                u = extract_username_from_item(item)
+                if u:
+                    usernames.append(u)
 
-    if isinstance(data, dict):
+    elif isinstance(data, dict):
+        for key, val in data.items():
+            if isinstance(val, list):
+                for entry in val:
+                    if not isinstance(entry, dict):
+                        continue
+                    sld = entry.get("string_list_data", [])
+                    for item in sld:
+                        u = extract_username_from_item(item)
+                        if u:
+                            usernames.append(u)
 
-        for key in data:
-
-            if isinstance(data[key], list):
-                return len(data[key])
-
-    return 0
+    return usernames
 
 
 def find_connections_folder(folder):
@@ -135,11 +154,7 @@ def find_threads_folder(folder):
 
 def parse_json_export(folder):
 
-    print("\n=== PARSING JSON EXPORT ===")
-
     conn_folder = find_connections_folder(folder)
-
-    print(f"  connections folder: {conn_folder}")
 
     followers = []
     following = []
@@ -158,24 +173,14 @@ def parse_json_export(folder):
                 data = load_json_file(path)
 
                 if data:
-
-                    extracted = extract_usernames(data)
-
-                    print(f"  followers from {f}: {len(extracted)}")
-
-                    followers.extend(extracted)
+                    followers.extend(extract_usernames(data))
 
             elif f == "following.json":
 
                 data = load_json_file(path)
 
                 if data:
-
-                    extracted = extract_usernames(data)
-
-                    print(f"  following from {f}: {len(extracted)}")
-
-                    following.extend(extracted)
+                    following.extend(extract_usernames(data))
 
     threads_folder = find_threads_folder(folder)
 
@@ -183,8 +188,6 @@ def parse_json_export(folder):
     threads_following = []
 
     if threads_folder:
-
-        print(f"  threads folder: {threads_folder}")
 
         for f in sorted(os.listdir(threads_folder)):
 
@@ -198,28 +201,18 @@ def parse_json_export(folder):
                 data = load_json_file(path)
 
                 if data:
-
-                    extracted = extract_usernames(data)
-
-                    print(f"  threads followers from {f}: {len(extracted)}")
-
-                    threads_followers.extend(extracted)
+                    threads_followers.extend(extract_usernames(data))
 
             elif f == "following.json":
 
                 data = load_json_file(path)
 
                 if data:
+                    threads_following.extend(extract_usernames(data))
 
-                    extracted = extract_usernames(data)
-
-                    print(f"  threads following from {f}: {len(extracted)}")
-
-                    threads_following.extend(extracted)
-
+    # Extract actual usernames from likes and comments
+    likes_usernames = []
     likes_folder = find_activity_folder(folder, "likes")
-
-    likes_count = 0
 
     if likes_folder:
 
@@ -230,46 +223,29 @@ def parse_json_export(folder):
                 data = load_json_file(os.path.join(likes_folder, f))
 
                 if data:
+                    likes_usernames.extend(extract_interaction_usernames(data))
 
-                    c = count_interactions(data)
-
-                    print(f"  likes from {f}: {c}")
-
-                    likes_count += c
-
+    comments_usernames = []
     comments_folder = find_activity_folder(folder, "comments")
-
-    comments_count = 0
 
     if comments_folder:
 
         for f in os.listdir(comments_folder):
 
             if f.endswith(".json") and (
-
                 f.startswith("post_comments") or f == "reels_comments.json"
-
             ):
 
                 data = load_json_file(os.path.join(comments_folder, f))
 
                 if data:
-
-                    c = count_interactions(data)
-
-                    print(f"  comments from {f}: {c}")
-
-                    comments_count += c
-
-    print(f"\n  TOTALS => followers:{len(followers)} following:{len(following)} likes:{likes_count} comments:{comments_count}")
-    print(f"  THREADS => followers:{len(threads_followers)} following:{len(threads_following)}")
-    print("=== END PARSING ===\n")
+                    comments_usernames.extend(extract_interaction_usernames(data))
 
     return {
         "followers":         list(set(followers)),
         "following":         list(set(following)),
-        "likes":             list(range(likes_count)),
-        "comments":          list(range(comments_count)),
+        "likes":             likes_usernames,
+        "comments":          comments_usernames,
         "threads_followers": list(set(threads_followers)),
         "threads_following": list(set(threads_following)),
     }

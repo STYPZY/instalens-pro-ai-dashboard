@@ -1,37 +1,34 @@
 from collections import Counter
 
 
-def interaction_ranking(data):
-
-    likes = data.get("likes", [])
-    comments = data.get("comments", [])
+def interaction_ranking(connections):
+    """
+    Ranks users by interaction score (likes = 1pt, comments = 2pts).
+    Only meaningful when likes/comments contain actual usernames.
+    """
+    likes = connections.get("likes", [])
+    comments = connections.get("comments", [])
 
     counter = Counter()
 
     for user in likes:
-        counter[user] += 1
+        if isinstance(user, str):
+            counter[user] += 1
 
     for user in comments:
-        counter[user] += 2
+        if isinstance(user, str):
+            counter[user] += 2
 
     ranking = sorted(counter.items(), key=lambda x: x[1], reverse=True)
 
-    return ranking[:20]
+    return [{"user": user, "score": score} for user, score in ranking[:20]]
 
 
-def loyal_followers(data):
+def loyal_followers(connections):
+    """
+    Returns the top interacting users who also follow you back.
+    """
+    followers_set = set(connections.get("followers", []))
+    ranking = interaction_ranking(connections)
 
-    followers = set(data.get("followers", []))
-    ranking = interaction_ranking(data)
-
-    loyal = []
-
-    for user, score in ranking:
-
-        if user in followers:
-            loyal.append({
-                "user": user,
-                "score": score
-            })
-
-    return loyal
+    return [entry for entry in ranking if entry["user"] in followers_set]
