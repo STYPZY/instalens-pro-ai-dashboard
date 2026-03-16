@@ -1,10 +1,29 @@
+# ── Flask core ──
 flask==3.0.3
 jinja2==3.1.4
 werkzeug==3.0.3
+
+# ── Cache ──
 cachetools
+
+# ── Parsing & scraping ──
 beautifulsoup4
+lxml
+
+# ── Image & media ──
 pillow
 imagehash
 hachoir
+
+# ── HTTP ──
 requests
+
+# ── Production server ──
 gunicorn
+
+# ── System binaries (install separately — not via pip) ──
+# exiftool  →  sudo apt install libimage-exiftool-perl   (Ubuntu/Debian)
+#              brew install exiftool                      (macOS)
+# ffprobe   →  sudo apt install ffmpeg                   (Ubuntu/Debian)
+#              brew install ffmpeg                        (macOS)
+# Both are required for MediaForensics / metadata analysis features.
