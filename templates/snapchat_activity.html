@@ -4,9 +4,10 @@
 {% set lgn  = data.login %}
 {% set sto  = data.stories %}
 {% set loc  = data.location %}
+{% set hist = data.account_history %}
 
 <div class="page-header">
-  <div><h2>Activity & Security</h2><p>Search history, login activity, stories and location data</p></div>
+  <div><h2>Activity & Security</h2><p>Search history, login activity, stories and account history</p></div>
   <div class="page-actions">
     <a href="{{ url_for('snapchat_dashboard', dashboard_id=dashboard_id) }}" class="btn btn-ghost btn-sm">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back
@@ -40,11 +41,11 @@
     <div class="meta-row"><div class="meta-key">Total Logins</div><div class="meta-val">{{ lgn.total }}</div></div>
     <div class="meta-row"><div class="meta-key">Unique IPs</div><div class="meta-val" style="color:var(--teal);">{{ lgn.unique_ips }}</div></div>
     {% if lgn.countries %}
-    <div class="meta-row"><div class="meta-key">Countries</div><div class="meta-val">{{ lgn.countries | join(", ") }}</div></div>
+    <div class="meta-row"><div class="meta-key">Countries</div><div class="meta-val">{{ lgn.countries | join(", ") | upper }}</div></div>
     {% endif %}
     {% if lgn.devices %}
     <div style="padding-top:12px;">
-      <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Devices</div>
+      <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Apps / Devices</div>
       {% for dev in lgn.devices %}
       <div class="meta-row"><div class="meta-val" style="font-size:11px;">{{ dev }}</div></div>
       {% endfor %}
@@ -55,8 +56,8 @@
       <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Recent Logins</div>
       {% for l in lgn.recent[:8] %}
       <div class="meta-row">
-        <div class="meta-key" style="font-size:10px;">{{ l.get("Created","") or l.get("Date","") or "—" }}</div>
-        <div class="meta-val" style="font-size:10px;">{{ l.get("IP","") }} {{ l.get("Country","") }}</div>
+        <div class="meta-key" style="font-size:10px;">{{ l.get("Created","")[:10] }}</div>
+        <div class="meta-val" style="font-size:10px;">{{ l.get("IP","") }} · {{ l.get("Country","") | upper }} · {{ l.get("Status","") }}</div>
       </div>
       {% endfor %}
     </div>
@@ -89,4 +90,27 @@
   {% endif %}
 
 </div>
+
+{% if hist %}
+<div class="section-label" style="margin-top:8px;">Account History</div>
+<div class="report-grid">
+  <div class="card">
+    <div class="card-hd"><div><div class="card-title">Security Events</div><div class="card-sub">Password and 2FA changes</div></div></div>
+    <div class="meta-row"><div class="meta-key">Password Changes</div><div class="meta-val">{{ hist.password_changes }}</div></div>
+    <div class="meta-row"><div class="meta-key">Display Name Changes</div><div class="meta-val">{{ hist.display_name_changes }}</div></div>
+    {% if hist.two_fa_events %}
+    <div style="padding-top:10px;">
+      <div style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">2FA History</div>
+      {% for e in hist.two_fa_events %}
+      <div class="meta-row">
+        <div class="meta-key" style="font-size:10px;">{{ e.get("Date","")[:10] }}</div>
+        <div class="meta-val" style="font-size:11px;color:var(--teal);">{{ e.get("Event","") }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

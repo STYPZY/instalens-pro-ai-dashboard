@@ -8,6 +8,9 @@
 {% set snap = data.snap_history %}
 {% set srch = data.search_history %}
 {% set sto  = data.stories %}
+{% set lgn  = data.login %}
+{% set prof = data.user_profile %}
+{% set hist = data.account_history %}
 
 <div class="page-header">
   <div>
@@ -32,15 +35,30 @@
     <div><div class="card-title">Account Information</div><div class="card-sub">Basic profile details</div></div>
     <span class="card-badge" style="background:rgba(255,252,0,0.08);color:#fffc00;border-color:rgba(255,252,0,0.2);">Snapchat</span>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
-    {% if acc.username %}<div class="meta-row"><div class="meta-key">Username</div><div class="meta-val">{{ acc.username }}</div></div>{% endif %}
-    {% if acc.display_name %}<div class="meta-row"><div class="meta-key">Display Name</div><div class="meta-val">{{ acc.display_name }}</div></div>{% endif %}
-    {% if acc.email %}<div class="meta-row"><div class="meta-key">Email</div><div class="meta-val">{{ acc.email }}</div></div>{% endif %}
-    {% if acc.phone %}<div class="meta-row"><div class="meta-key">Phone</div><div class="meta-val">{{ acc.phone }}</div></div>{% endif %}
-    {% if acc.created %}<div class="meta-row"><div class="meta-key">Account Created</div><div class="meta-val">{{ acc.created }}</div></div>{% endif %}
-    {% if acc.birthday %}<div class="meta-row"><div class="meta-key">Birthday</div><div class="meta-val">{{ acc.birthday }}</div></div>{% endif %}
-    {% if acc.snap_score %}<div class="meta-row"><div class="meta-key">Snap Score</div><div class="meta-val" style="color:var(--teal);">{{ acc.snap_score }}</div></div>{% endif %}
-  </div>
+  {% if acc.username %}
+  <div class="meta-row"><div class="meta-key">Username</div><div class="meta-val">{{ acc.username }}</div></div>
+  {% endif %}
+  {% if acc.display_name %}
+  <div class="meta-row"><div class="meta-key">Display Name</div><div class="meta-val">{{ acc.display_name }}</div></div>
+  {% endif %}
+  {% if acc.email %}
+  <div class="meta-row"><div class="meta-key">Email</div><div class="meta-val">{{ acc.email }}</div></div>
+  {% endif %}
+  {% if acc.phone %}
+  <div class="meta-row"><div class="meta-key">Phone</div><div class="meta-val">{{ acc.phone }}</div></div>
+  {% endif %}
+  {% if acc.created %}
+  <div class="meta-row"><div class="meta-key">Account Created</div><div class="meta-val">{{ acc.created }}</div></div>
+  {% endif %}
+  {% if acc.country %}
+  <div class="meta-row"><div class="meta-key">Country</div><div class="meta-val">{{ acc.country }}</div></div>
+  {% endif %}
+  {% if acc.last_active %}
+  <div class="meta-row"><div class="meta-key">Last Active</div><div class="meta-val">{{ acc.last_active }}</div></div>
+  {% endif %}
+  {% if prof.age_group %}
+  <div class="meta-row"><div class="meta-key">Age Group</div><div class="meta-val">{{ prof.age_group | replace("AGE_","") | replace("_TO_"," – ") }}</div></div>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -48,12 +66,12 @@
   <div class="stat-card blue">
     <div class="stat-label"><span class="stat-dot"></span>Friends</div>
     <div class="stat-value">{{ fri.friends_count }}</div>
-    <div class="stat-sub">on your friend list</div>
+    <div class="stat-sub">current friends</div>
   </div>
   <div class="stat-card teal">
     <div class="stat-label"><span class="stat-dot"></span>Memories</div>
-    <div class="stat-value">{{ mem.total }}</div>
-    <div class="stat-sub">{{ mem.photos }} photos · {{ mem.videos }} videos</div>
+    <div class="stat-value">{% if mem.not_in_export %}N/A{% else %}{{ mem.total }}{% endif %}</div>
+    <div class="stat-sub">{% if mem.not_in_export %}not included in export{% else %}{{ mem.photos }} photos · {{ mem.videos }} videos{% endif %}</div>
   </div>
   <div class="stat-card violet">
     <div class="stat-label"><span class="stat-dot"></span>Snaps Sent</div>
@@ -74,14 +92,14 @@
     <div class="stat-sub">across {{ chat.total_conversations }} chats</div>
   </div>
   <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
-    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#fb7185;"></span>Blocked</div>
-    <div class="stat-value">{{ fri.blocked_count }}</div>
-    <div class="stat-sub">blocked users</div>
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#fb7185;"></span>Deleted Friends</div>
+    <div class="stat-value">{{ fri.deleted_count }}</div>
+    <div class="stat-sub">removed friends</div>
   </div>
   <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
-    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#a78bfa;"></span>Stories Posted</div>
-    <div class="stat-value">{{ sto.total }}</div>
-    <div class="stat-sub">my story posts</div>
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#a78bfa;"></span>Friend Requests Sent</div>
+    <div class="stat-value">{{ fri.sent_requests_count }}</div>
+    <div class="stat-sub">total sent</div>
   </div>
   <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
     <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#2dd4bf;"></span>Searches</div>
@@ -90,14 +108,51 @@
   </div>
 </div>
 
+<div class="stats-row">
+  <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#f59e0b;"></span>Ignored</div>
+    <div class="stat-value">{{ fri.ignored_count }}</div>
+    <div class="stat-sub">ignored snapchatters</div>
+  </div>
+  <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#fb7185;"></span>Blocked</div>
+    <div class="stat-value">{{ fri.blocked_count }}</div>
+    <div class="stat-sub">blocked users</div>
+  </div>
+  <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#4f8ef7;"></span>Logins Recorded</div>
+    <div class="stat-value">{{ lgn.total }}</div>
+    <div class="stat-sub">{{ lgn.unique_ips }} unique IPs</div>
+  </div>
+  <div class="stat-card" style="border-color:rgba(255,255,255,0.08);">
+    <div class="stat-label" style="color:var(--text-muted)"><span class="stat-dot" style="background:#34d399;"></span>Password Changes</div>
+    <div class="stat-value">{{ hist.password_changes }}</div>
+    <div class="stat-sub">all time</div>
+  </div>
+</div>
+
+{% if prof.time_spent %}
+<div class="section-label" style="margin-top:4px;">Time Spent on App</div>
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-hd">
+    <div><div class="card-title">Activity Breakdown</div><div class="card-sub">How you use Snapchat</div></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;padding-top:4px;">
+    {% for item in prof.time_spent %}
+    <span style="background:var(--bg-raised);border:1px solid var(--border-subtle);border-radius:6px;padding:5px 12px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);">{{ item }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="charts-grid">
   <div class="chart-card">
     <div class="chart-label">Snap Activity Overview</div>
     <canvas id="snapActivityChart"></canvas>
   </div>
   <div class="chart-card">
-    <div class="chart-label">Memories by Year</div>
-    <canvas id="memoriesYearChart"></canvas>
+    <div class="chart-label">Friends Breakdown</div>
+    <canvas id="friendsChart"></canvas>
   </div>
 </div>
 
@@ -106,10 +161,6 @@
   <a href="{{ url_for('snapchat_friends', dashboard_id=dashboard_id) }}" class="quick-link">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     Friends
-  </a>
-  <a href="{{ url_for('snapchat_memories', dashboard_id=dashboard_id) }}" class="quick-link">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-    Memories
   </a>
   <a href="{{ url_for('snapchat_chats', dashboard_id=dashboard_id) }}" class="quick-link">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -127,13 +178,14 @@
 
 <script>
 window.snap_chart_data = {
-  snap_sent:       {{ snap.total_sent }},
-  snap_received:   {{ snap.total_received }},
-  chat_sent:       {{ chat.total_sent }},
-  chat_received:   {{ chat.total_received }},
-  memories_photos: {{ mem.photos }},
-  memories_videos: {{ mem.videos }},
-  memories_year:   {{ mem.by_year | tojson }},
+  snap_sent:      {{ snap.total_sent }},
+  snap_received:  {{ snap.total_received }},
+  chat_sent:      {{ chat.total_sent }},
+  chat_received:  {{ chat.total_received }},
+  friends:        {{ fri.friends_count }},
+  deleted:        {{ fri.deleted_count }},
+  ignored:        {{ fri.ignored_count }},
+  sent_requests:  {{ fri.sent_requests_count }},
 };
 </script>
 <script>
@@ -143,14 +195,14 @@ document.addEventListener("DOMContentLoaded", function(){
   const ctx1 = document.getElementById("snapActivityChart");
   if(ctx1){
     new Chart(ctx1, {
-      type: "bar",
-      data: {
-        labels: ["Snaps Sent","Snaps Received","Msgs Sent","Msgs Received","Photos","Videos"],
+      type:"bar",
+      data:{
+        labels:["Snaps Sent","Snaps Received","Msgs Sent","Msgs Received"],
         datasets:[{
           label:"Count",
-          data:[d.snap_sent, d.snap_received, d.chat_sent, d.chat_received, d.memories_photos, d.memories_videos],
-          backgroundColor:["rgba(79,142,247,0.7)","rgba(45,212,191,0.7)","rgba(167,139,250,0.7)","rgba(251,113,133,0.7)","rgba(251,191,36,0.7)","rgba(52,211,153,0.7)"],
-          borderColor:["#4f8ef7","#2dd4bf","#a78bfa","#fb7185","#fbbf24","#34d399"],
+          data:[d.snap_sent, d.snap_received, d.chat_sent, d.chat_received],
+          backgroundColor:["rgba(79,142,247,0.7)","rgba(45,212,191,0.7)","rgba(167,139,250,0.7)","rgba(251,113,133,0.7)"],
+          borderColor:["#4f8ef7","#2dd4bf","#a78bfa","#fb7185"],
           borderWidth:1.5, borderRadius:5, borderSkipped:false
         }]
       },
@@ -165,24 +217,27 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
 
-  const ctx2 = document.getElementById("memoriesYearChart");
+  const ctx2 = document.getElementById("friendsChart");
   if(ctx2){
-    const years  = Object.keys(d.memories_year);
-    const totals = years.map(y => (d.memories_year[y].photos||0)+(d.memories_year[y].videos||0));
-    const colors = ["#4f8ef7","#2dd4bf","#a78bfa","#fb7185","#fbbf24","#34d399","#f97316","#06b6d4"];
-    if(years.length > 0){
-      new Chart(ctx2, {
-        type:"doughnut",
-        data:{
-          labels:years,
-          datasets:[{data:totals,backgroundColor:colors.slice(0,years.length).map(c=>c+"cc"),borderColor:colors.slice(0,years.length),borderWidth:2,hoverOffset:6}]
-        },
-        options:{
-          cutout:"65%", responsive:true, maintainAspectRatio:true,
-          plugins:{legend:{position:"bottom",labels:{padding:14,usePointStyle:true,pointStyleWidth:8,color:"#8b9bc8",font:{family:"'DM Sans',sans-serif",size:11}}},tooltip:{backgroundColor:"#0f1525",borderColor:"rgba(255,255,255,0.08)",borderWidth:1,titleColor:"#f0f4ff",bodyColor:"#8b9bc8",padding:12,cornerRadius:8}}
+    new Chart(ctx2, {
+      type:"doughnut",
+      data:{
+        labels:["Current Friends","Deleted","Ignored","Sent Requests"],
+        datasets:[{
+          data:[d.friends, d.deleted, d.ignored, d.sent_requests],
+          backgroundColor:["rgba(79,142,247,0.8)","rgba(251,113,133,0.8)","rgba(251,191,36,0.8)","rgba(167,139,250,0.8)"],
+          borderColor:["#4f8ef7","#fb7185","#fbbf24","#a78bfa"],
+          borderWidth:2, hoverOffset:6
+        }]
+      },
+      options:{
+        cutout:"65%", responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{position:"bottom",labels:{padding:14,usePointStyle:true,pointStyleWidth:8,color:"#8b9bc8",font:{family:"'DM Sans',sans-serif",size:11}}},
+          tooltip:{backgroundColor:"#0f1525",borderColor:"rgba(255,255,255,0.08)",borderWidth:1,titleColor:"#f0f4ff",bodyColor:"#8b9bc8",padding:12,cornerRadius:8}
         }
-      });
-    }
+      }
+    });
   }
 });
 </script>

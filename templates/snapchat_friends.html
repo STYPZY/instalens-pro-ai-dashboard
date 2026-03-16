@@ -3,7 +3,7 @@
 {% set fri = data.friends %}
 
 <div class="page-header">
-  <div><h2>Friends</h2><p>Your Snapchat friend list, blocked users and deleted friends</p></div>
+  <div><h2>Friends</h2><p>Your Snapchat friend list, deleted friends, sent requests and ignored users</p></div>
   <div class="page-actions">
     <a href="{{ url_for('snapchat_export_friends_csv', dashboard_id=dashboard_id) }}" class="export-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -18,9 +18,9 @@
 
 <div class="stats-row">
   <div class="stat-card blue"><div class="stat-label"><span class="stat-dot"></span>Friends</div><div class="stat-value">{{ fri.friends_count }}</div><div class="stat-sub">current friends</div></div>
-  <div class="stat-card rose"><div class="stat-label"><span class="stat-dot"></span>Blocked</div><div class="stat-value">{{ fri.blocked_count }}</div><div class="stat-sub">blocked users</div></div>
-  <div class="stat-card violet"><div class="stat-label"><span class="stat-dot"></span>Deleted</div><div class="stat-value">{{ fri.deleted_count }}</div><div class="stat-sub">removed friends</div></div>
-  <div class="stat-card teal"><div class="stat-label"><span class="stat-dot"></span>Pending</div><div class="stat-value">{{ fri.pending_count }}</div><div class="stat-sub">pending requests</div></div>
+  <div class="stat-card rose"><div class="stat-label"><span class="stat-dot"></span>Deleted</div><div class="stat-value">{{ fri.deleted_count }}</div><div class="stat-sub">removed friends</div></div>
+  <div class="stat-card violet"><div class="stat-label"><span class="stat-dot"></span>Sent Requests</div><div class="stat-value">{{ fri.sent_requests_count }}</div><div class="stat-sub">requests you sent</div></div>
+  <div class="stat-card teal"><div class="stat-label"><span class="stat-dot"></span>Ignored</div><div class="stat-value">{{ fri.ignored_count }}</div><div class="stat-sub">ignored snapchatters</div></div>
 </div>
 
 <div class="dt-search-wrap">
@@ -35,24 +35,24 @@
     <div class="dt-scroll" id="list-friends"></div>
   </div>
   <div class="dt-panel">
-    <div class="dt-panel-head rose"><span class="dph-dot"></span><span class="dph-title">Blocked</span><span class="dph-count" id="sc-blocked">{{ fri.blocked_count }} accounts</span></div>
-    <div class="dt-scroll" id="list-blocked"></div>
-  </div>
-  <div class="dt-panel">
-    <div class="dt-panel-head violet"><span class="dph-dot"></span><span class="dph-title">Deleted Friends</span><span class="dph-count" id="sc-deleted">{{ fri.deleted_count }} accounts</span></div>
+    <div class="dt-panel-head rose"><span class="dph-dot"></span><span class="dph-title">Deleted Friends</span><span class="dph-count" id="sc-deleted">{{ fri.deleted_count }} accounts</span></div>
     <div class="dt-scroll" id="list-deleted"></div>
   </div>
   <div class="dt-panel">
-    <div class="dt-panel-head teal"><span class="dph-dot"></span><span class="dph-title">Pending</span><span class="dph-count" id="sc-pending">{{ fri.pending_count }} accounts</span></div>
-    <div class="dt-scroll" id="list-pending"></div>
+    <div class="dt-panel-head violet"><span class="dph-dot"></span><span class="dph-title">Sent Requests</span><span class="dph-count" id="sc-sentreq">{{ fri.sent_requests_count }} accounts</span></div>
+    <div class="dt-scroll" id="list-sentreq"></div>
+  </div>
+  <div class="dt-panel">
+    <div class="dt-panel-head teal"><span class="dph-dot"></span><span class="dph-title">Ignored</span><span class="dph-count" id="sc-ignored">{{ fri.ignored_count }} accounts</span></div>
+    <div class="dt-scroll" id="list-ignored"></div>
   </div>
 </div>
 
 <script>
-const friendsData = {{ fri.friends | tojson }};
-const blockedData = {{ fri.blocked | tojson }};
-const deletedData = {{ fri.deleted | tojson }};
-const pendingData = {{ fri.pending | tojson }};
+const friendsData  = {{ fri.friends       | tojson }};
+const deletedData  = {{ fri.deleted       | tojson }};
+const sentReqData  = {{ fri.sent_requests | tojson }};
+const ignoredData  = {{ fri.ignored       | tojson }};
 
 function avatarColor(u){
   const p=["#4f8ef7","#2dd4bf","#a78bfa","#fb7185","#f59e0b","#10b981"];
@@ -88,9 +88,9 @@ function renderList(listId, countId, items, q, getUser, getSub){
 function renderAll(q){
   let total=0;
   total+=renderList("list-friends","sc-friends",friendsData,q,d=>d.username||"",d=>d.added_date||"");
-  total+=renderList("list-blocked","sc-blocked",blockedData,q,d=>d.username||"",d=>d.blocked_date||"");
-  total+=renderList("list-deleted","sc-deleted",deletedData,q,d=>d.username||"",d=>d.deleted_date||"");
-  total+=renderList("list-pending","sc-pending",pendingData,q,d=>d.username||"",d=>d.request_date||"");
+  total+=renderList("list-deleted","sc-deleted",deletedData,q,d=>d.username||"",d=>d.added_date||"");
+  total+=renderList("list-sentreq","sc-sentreq",sentReqData,q,d=>d.username||"",d=>d.added_date||"");
+  total+=renderList("list-ignored","sc-ignored",ignoredData,q,d=>d.username||"",d=>d.added_date||"");
   document.getElementById("search-hint").textContent=q?total+" result"+(total!==1?"s":"")+" across all sections":"";
 }
 document.getElementById("friends-search").addEventListener("input",function(){ renderAll(this.value.trim()); });

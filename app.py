@@ -31,9 +31,17 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 processing_jobs = {}
 
 
+# ─────────────────────────────────────────────
+#  HELPERS
+# ─────────────────────────────────────────────
+
 def _expired():
     return render_template("index.html", error="Session expired — please upload your export again.", snap_dashboard_id=None)
 
+
+# ─────────────────────────────────────────────
+#  INSTAGRAM — background worker
+# ─────────────────────────────────────────────
 
 def analyze_instagram_zip(job_id, zip_path):
     try:
@@ -60,6 +68,10 @@ def analyze_instagram_zip(job_id, zip_path):
         processing_jobs[job_id] = {"error": str(e)}
 
 
+# ─────────────────────────────────────────────
+#  SNAPCHAT — background worker
+# ─────────────────────────────────────────────
+
 def analyze_snapchat_zip(job_id, zip_path):
     try:
         validate_zip(zip_path)
@@ -76,6 +88,10 @@ def analyze_snapchat_zip(job_id, zip_path):
         processing_jobs[job_id] = {"error": str(e)}
 
 
+# ─────────────────────────────────────────────
+#  SHARED PROCESSING ROUTE
+# ─────────────────────────────────────────────
+
 @app.route("/processing/<job_id>")
 def processing(job_id):
     result = processing_jobs.get(job_id)
@@ -88,6 +104,10 @@ def processing(job_id):
         return redirect(url_for("snapchat_dashboard", dashboard_id=result))
     return redirect(url_for("dashboard", dashboard_id=result))
 
+
+# ─────────────────────────────────────────────
+#  INSTAGRAM ROUTES
+# ─────────────────────────────────────────────
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -254,6 +274,10 @@ def api_search(dashboard_id):
     return jsonify({"results": results[:20]})
 
 
+# ─────────────────────────────────────────────
+#  SNAPCHAT ROUTES
+# ─────────────────────────────────────────────
+
 @app.route("/snapchat", methods=["GET", "POST"])
 def snapchat_upload():
     if request.method == "POST":
@@ -271,6 +295,18 @@ def snapchat_upload():
         threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name)).start()
         return redirect(url_for("processing", job_id=job_id))
     return render_template("snapchat_upload.html", error=None)
+
+
+@app.route("/snapchat/debug/<dashboard_id>")
+def snapchat_debug(dashboard_id):
+    """Temporary debug route — shows raw export structure."""
+    stored = get_dashboard(dashboard_id)
+    if not stored:
+        return "Session expired"
+    from parser.snapchat_debug import debug_snapchat_export
+    folder = stored.get("folder", "")
+    report = debug_snapchat_export(folder)
+    return f"<pre style='font-size:12px;padding:20px;'>{report}</pre>"
 
 
 @app.route("/snapchat/dashboard/<dashboard_id>")
