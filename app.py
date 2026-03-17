@@ -124,9 +124,9 @@ def analyze_snapchat_zip(job_id, zip_path):
 @app.route("/get-upload-signature")
 def get_upload_signature():
     return jsonify({
-        "cloud_name": os.environ.get("dpremvspd"),
-        "api_key": os.environ.get("518213445682397"),
-        "upload_preset": os.environ.get("instalens_upload"),
+        "cloud_name": "dpremvspd",
+        "api_key": "518213445682397",
+        "upload_preset": "instalens_upload",
     })
 
 
