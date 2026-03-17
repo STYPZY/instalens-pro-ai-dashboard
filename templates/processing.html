@@ -6,13 +6,129 @@
   <div class="processing-ring"></div>
   <div>
     <div class="processing-title">Processing Export</div>
-    <div class="processing-sub" style="margin-top: 6px;">Analyzing your Instagram data — this may take a few seconds</div>
+    <div class="processing-sub" id="status-message" style="margin-top: 6px;">Analyzing your data — this may take a few seconds</div>
   </div>
   <div class="dot-row">
     <span></span><span></span><span></span>
   </div>
 </div>
 
-<meta http-equiv="refresh" content="3">
+<script>
+const jobId = "{{ job_id }}";
+const maxAttempts = 120; // 2 minutes with 1-second interval
+let attempts = 0;
+
+async function checkJobStatus() {
+  try {
+    const response = await fetch(`/api/job-status/${jobId}`);
+    const data = await response.json();
+
+    const statusEl = document.getElementById('status-message');
+
+    if (data.status === 'processing') {
+      // Still processing
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(checkJobStatus, 1000); // Check again in 1 second
+      } else {
+        // Timeout
+        statusEl.textContent = 'Processing took too long. Please refresh or try again.';
+        statusEl.style.color = '#fb7185';
+      }
+    } else if (data.status === 'complete' && data.dashboard_id) {
+      // Success - redirect to dashboard
+      statusEl.textContent = 'Analysis complete! Redirecting...';
+      statusEl.style.color = '#2dd4bf';
+      
+      // Determine which dashboard to go to
+      const urlParams = new URLSearchParams(window.location.search);
+      const platform = urlParams.get('platform') || 'instagram';
+      
+      if (platform === 'snapchat') {
+        window.location.href = `/snapchat/dashboard/${data.dashboard_id}`;
+      } else {
+        window.location.href = `/dashboard/${data.dashboard_id}`;
+      }
+    } else if (data.status === 'error') {
+      // Error occurred
+      statusEl.textContent = `⚠ Error: ${data.error}`;
+      statusEl.style.color = '#fb7185';
+      
+      // Add a retry button
+      setTimeout(() => {
+        statusEl.innerHTML += '<br><a href="/" style="color: #4f8ef7; text-decoration: underline; font-size: 12px;">← Back to Upload</a>';
+      }, 1000);
+    }
+  } catch (err) {
+    console.error('Status check error:', err);
+    // Retry on network error
+    attempts++;
+    if (attempts < maxAttempts) {
+      setTimeout(checkJobStatus, 2000); // Retry in 2 seconds
+    }
+  }
+}
+
+// Start polling immediately
+checkJobStatus();
+</script>
+
+<style>
+.processing-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 30px;
+  text-align: center;
+}
+
+.processing-ring {
+  width: 60px;
+  height: 60px;
+  border: 3px solid rgba(79, 142, 247, 0.2);
+  border-radius: 50%;
+  border-top-color: #4f8ef7;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.processing-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.processing-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.dot-row {
+  display: flex;
+  gap: 6px;
+}
+
+.dot-row span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4f8ef7;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.dot-row span:nth-child(2) { animation-delay: 0.2s; }
+.dot-row span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+</style>
 
 {% endblock %}

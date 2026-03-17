@@ -64,11 +64,11 @@
 
   <div id="progress-wrap" style="display:none;margin-top:14px;">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">
-      <span id="progress-label">Uploading…</span>
+      <span id="progress-label">Initializing upload…</span>
       <span id="progress-pct">0%</span>
     </div>
     <div style="background:var(--bg-raised);border-radius:4px;height:4px;overflow:hidden;">
-      <div id="progress-bar" style="height:100%;width:0%;background:#fffc00;transition:width 0.2s ease;border-radius:4px;"></div>
+      <div id="progress-bar" style="height:100%;width:0%;background:#fffc00;transition:width 0.3s ease;border-radius:4px;"></div>
     </div>
   </div>
 
@@ -144,9 +144,8 @@ async function startUpload(platform) {
   if (!file) { showError('Please select a file before submitting.'); return; }
 
   submitBtn.disabled = true;
-  submitBtn.innerHTML = 'Uploading…';
-  hint.textContent    = 'Uploading to secure storage…';
-  hint.style.color    = '#fffc00';
+  hint.textContent = 'Uploading…';
+  hint.style.color = '#fffc00';
   errorBox.style.display = 'none';
   progressWrap.style.display = 'block';
 
@@ -156,19 +155,38 @@ async function startUpload(platform) {
 
   if (isLocal) {
     try {
+      progressLbl.textContent = 'Uploading file…';
       const formData = new FormData();
       formData.append("file", file);
       formData.append("platform", platform);
+
+      // Simulate progress for local upload
+      const progressInterval = setInterval(() => {
+        const currentWidth = parseInt(progressBar.style.width) || 0;
+        if (currentWidth < 90) {
+          const newWidth = currentWidth + Math.random() * 30;
+          progressBar.style.width = Math.min(newWidth, 90) + '%';
+          progressPct.textContent = Math.min(Math.floor(newWidth), 90) + '%';
+        }
+      }, 300);
 
       const res = await fetch("/upload-local", {
         method: "POST",
         body: formData
       });
 
+      clearInterval(progressInterval);
       const data = await res.json();
+      
       if (data.error) { showError(data.error); return; }
 
-      window.location.href = "/processing/" + data.job_id;
+      progressBar.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressLbl.textContent = 'Processing…';
+
+      setTimeout(() => {
+        window.location.href = "/processing/" + data.job_id;
+      }, 500);
 
     } catch (err) {
       showError(err.message);
@@ -176,12 +194,21 @@ async function startUpload(platform) {
 
   } else {
     try {
+      progressLbl.textContent = 'Getting upload credentials…';
       const sigRes = await fetch('/get-upload-signature');
+      
+      if (!sigRes.ok) {
+        const sigData = await sigRes.json();
+        return showError(sigData.error || 'Failed to get upload credentials');
+      }
+
       const { cloud_name, upload_preset } = await sigRes.json();
 
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', upload_preset);
+
+      progressLbl.textContent = 'Uploading to Cloudinary…';
 
       const publicId = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -200,13 +227,17 @@ async function startUpload(platform) {
             const data = JSON.parse(xhr.responseText);
             resolve(data.public_id);
           } else {
-            reject(new Error('Cloudinary upload failed'));
+            reject(new Error('Cloudinary upload failed: ' + xhr.status));
           }
         };
 
-        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.onerror = () => reject(new Error('Network error during upload'));
         xhr.send(formData);
       });
+
+      progressLbl.textContent = 'Processing on server…';
+      progressBar.style.width = '95%';
+      progressPct.textContent = '95%';
 
       const processRes = await fetch('/process-from-cloudinary', {
         method: 'POST',
@@ -217,7 +248,13 @@ async function startUpload(platform) {
       const processData = await processRes.json();
       if (processData.error) { showError(processData.error); return; }
 
-      window.location.href = '/processing/' + processData.job_id;
+      progressBar.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressLbl.textContent = 'Processing…';
+
+      setTimeout(() => {
+        window.location.href = '/processing/' + processData.job_id;
+      }, 500);
 
     } catch (err) {
       showError(err.message);

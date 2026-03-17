@@ -54,12 +54,12 @@
   </div>
 
   <div id="progress-wrap" style="display:none;margin-top:14px;">
-    <div style="display:flex;justify-content:space-between;font-size:11px;">
-      <span id="progress-label">Uploading…</span>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">
+      <span id="progress-label">Initializing upload…</span>
       <span id="progress-pct">0%</span>
     </div>
-    <div style="background:#222;border-radius:4px;height:4px;">
-      <div id="progress-bar" style="height:100%;width:0%;background:#4f8ef7;"></div>
+    <div style="background:#222;border-radius:4px;height:4px;overflow:hidden;">
+      <div id="progress-bar" style="height:100%;width:0%;background:#4f8ef7;transition:width 0.3s ease;border-radius:4px;"></div>
     </div>
   </div>
 
@@ -80,6 +80,9 @@ const progressLbl = document.getElementById('progress-label');
 const progressWrap = document.getElementById('progress-wrap');
 const submitBtn = document.getElementById('submit-btn');
 const errorBox = document.getElementById('error-box');
+const zone = document.getElementById('upload-zone');
+const defaultView = document.getElementById('upload-default');
+const selectedView = document.getElementById('upload-selected');
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -91,14 +94,33 @@ fileInput.addEventListener('change', function() {
   const file = this.files[0];
   if (!file) return;
 
+  defaultView.style.display = 'none';
+  selectedView.style.display = '';
+  zone.classList.add('file-ready');
   filenameEl.textContent = file.name;
   filesizeEl.textContent = formatSize(file.size);
 });
 
+zone.addEventListener('dragover', e => { 
+  e.preventDefault(); 
+  zone.classList.add('file-ready'); 
+});
+
+zone.addEventListener('dragleave', () => { 
+  if (!fileInput.files.length) zone.classList.remove('file-ready'); 
+});
+
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  fileInput.files = e.dataTransfer.files;
+  fileInput.dispatchEvent(new Event('change'));
+});
+
 function showError(msg) {
-  errorBox.textContent = msg;
+  errorBox.textContent = '⚠ ' + msg;
   errorBox.style.display = 'block';
   submitBtn.disabled = false;
+  progressWrap.style.display = 'none';
 }
 
 async function startUpload(platform) {
@@ -110,39 +132,69 @@ async function startUpload(platform) {
     window.location.hostname === "127.0.0.1";
 
   progressWrap.style.display = 'block';
+  submitBtn.disabled = true;
+  errorBox.style.display = 'none';
 
   // ✅ LOCAL MODE
   if (isLocal) {
     try {
+      progressLbl.textContent = 'Uploading file…';
       const formData = new FormData();
       formData.append("file", file);
       formData.append("platform", platform);
+
+      // Simulate progress for local upload (no real progress tracking available)
+      const progressInterval = setInterval(() => {
+        const currentWidth = parseInt(progressBar.style.width) || 0;
+        if (currentWidth < 90) {
+          const newWidth = currentWidth + Math.random() * 30;
+          progressBar.style.width = Math.min(newWidth, 90) + '%';
+          progressPct.textContent = Math.min(Math.floor(newWidth), 90) + '%';
+        }
+      }, 300);
 
       const res = await fetch("/upload-local", {
         method: "POST",
         body: formData
       });
 
+      clearInterval(progressInterval);
       const data = await res.json();
 
       if (data.error) return showError(data.error);
 
-      window.location.href = "/processing/" + data.job_id;
+      // Upload succeeded
+      progressBar.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressLbl.textContent = 'Processing…';
+
+      // Redirect to processing page
+      setTimeout(() => {
+        window.location.href = "/processing/" + data.job_id;
+      }, 500);
 
     } catch (err) {
       showError(err.message);
     }
 
   } else {
-    // 🌐 CLOUDINARY (UNCHANGED)
-
+    // 🌐 CLOUDINARY MODE
     try {
+      progressLbl.textContent = 'Getting upload credentials…';
       const sigRes = await fetch('/get-upload-signature');
+      
+      if (!sigRes.ok) {
+        const sigData = await sigRes.json();
+        return showError(sigData.error || 'Failed to get upload credentials');
+      }
+
       const { cloud_name, upload_preset } = await sigRes.json();
 
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', upload_preset);
+
+      progressLbl.textContent = 'Uploading to Cloudinary…';
 
       const publicId = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -161,13 +213,17 @@ async function startUpload(platform) {
             const data = JSON.parse(xhr.responseText);
             resolve(data.public_id);
           } else {
-            reject(new Error('Upload failed'));
+            reject(new Error('Cloudinary upload failed: ' + xhr.status));
           }
         };
 
-        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.onerror = () => reject(new Error('Network error during upload'));
         xhr.send(formData);
       });
+
+      progressLbl.textContent = 'Processing on server…';
+      progressBar.style.width = '95%';
+      progressPct.textContent = '95%';
 
       const processRes = await fetch('/process-from-cloudinary', {
         method: 'POST',
@@ -179,7 +235,15 @@ async function startUpload(platform) {
 
       if (processData.error) return showError(processData.error);
 
-      window.location.href = '/processing/' + processData.job_id;
+      // Upload succeeded
+      progressBar.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressLbl.textContent = 'Processing…';
+
+      // Redirect to processing page
+      setTimeout(() => {
+        window.location.href = '/processing/' + processData.job_id;
+      }, 500);
 
     } catch (err) {
       showError(err.message);
