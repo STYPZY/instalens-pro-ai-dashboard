@@ -52,7 +52,7 @@
 
     <div id="upload-selected" style="display:none;">
       <div class="upload-icon selected">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
       </div>
@@ -62,7 +62,6 @@
     </div>
   </div>
 
-  <!-- Progress bar -->
   <div id="progress-wrap" style="display:none;margin-top:14px;">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">
       <span id="progress-label">Uploading…</span>
@@ -75,7 +74,9 @@
 
   <div style="margin-top:20px;display:flex;align-items:center;gap:12px;">
     <button type="button" id="submit-btn" onclick="startUpload('snapchat')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
       Analyze Export
     </button>
     <span id="submit-hint" style="font-size:11.5px;color:var(--text-muted);">Select a file to continue</span>
@@ -114,7 +115,6 @@ function showError(msg) {
   errorBox.textContent = '⚠ ' + msg;
   errorBox.style.display = 'block';
   submitBtn.disabled = false;
-  submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Analyze Export';
   progressWrap.style.display = 'none';
 }
 
@@ -149,62 +149,79 @@ async function startUpload(platform) {
   hint.style.color    = '#fffc00';
   errorBox.style.display = 'none';
   progressWrap.style.display = 'block';
-  progressBar.style.width = '0%';
-  progressPct.textContent = '0%';
-  progressLbl.textContent = 'Uploading…';
 
-  try {
-    const sigRes = await fetch('/get-upload-signature');
-    const { cloud_name, upload_preset } = await sigRes.json();
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', upload_preset);
+  if (isLocal) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("platform", platform);
 
-    const publicId = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
+      const res = await fetch("/upload-local", {
+        method: "POST",
+        body: formData
+      });
 
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          progressBar.style.width = pct + '%';
-          progressPct.textContent = pct + '%';
-        }
-      };
+      const data = await res.json();
+      if (data.error) { showError(data.error); return; }
 
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          const data = JSON.parse(xhr.responseText);
-          sessionStorage.setItem('cloudinary_public_id', data.public_id);
-          resolve(data.public_id);
-        } else {
-          reject(new Error('Cloudinary upload failed: ' + xhr.responseText));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Network error during upload'));
-      xhr.send(formData);
-    });
+      window.location.href = "/processing/" + data.job_id;
 
-    progressBar.style.width = '100%';
-    progressPct.textContent = '100%';
-    progressLbl.textContent = 'Processing…';
-    submitBtn.innerHTML = 'Processing…';
+    } catch (err) {
+      showError(err.message);
+    }
 
-    const processRes = await fetch('/process-from-cloudinary', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ public_id: publicId, platform: platform })
-    });
-    const processData = await processRes.json();
+  } else {
+    try {
+      const sigRes = await fetch('/get-upload-signature');
+      const { cloud_name, upload_preset } = await sigRes.json();
 
-    if (processData.error) { showError(processData.error); return; }
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', upload_preset);
 
-    sessionStorage.removeItem('cloudinary_public_id');
-    window.location.href = '/processing/' + processData.job_id;
+      const publicId = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
 
-  } catch (err) {
-    showError(err.message || 'Upload failed. Please try again.');
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            progressBar.style.width = pct + '%';
+            progressPct.textContent = pct + '%';
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const data = JSON.parse(xhr.responseText);
+            resolve(data.public_id);
+          } else {
+            reject(new Error('Cloudinary upload failed'));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(formData);
+      });
+
+      const processRes = await fetch('/process-from-cloudinary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public_id: publicId, platform: platform })
+      });
+
+      const processData = await processRes.json();
+      if (processData.error) { showError(processData.error); return; }
+
+      window.location.href = '/processing/' + processData.job_id;
+
+    } catch (err) {
+      showError(err.message);
+    }
   }
 }
 </script>

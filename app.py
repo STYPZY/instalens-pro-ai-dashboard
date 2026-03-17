@@ -43,11 +43,12 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 #  CLOUDINARY CONFIG
 # ─────────────────────────────────────────────
 
-cloudinary.config(
-    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
-)
+if os.environ.get("CLOUDINARY_CLOUD_NAME"):
+    cloudinary.config(
+        cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        api_key=os.environ.get("CLOUDINARY_API_KEY"),
+        api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    )
 
 processing_jobs = {}
 
@@ -473,6 +474,37 @@ def snapchat_export_chat_csv(dashboard_id):
         return render_template("snapchat_upload.html", error="Session expired.")
     return Response(export_chat_csv(stored["data"]["chat_history"]), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=snapchat_chats.csv"})
+
+
+@app.route("/upload-local", methods=["POST"])
+def upload_local():
+    file = request.files.get("file")
+    platform = request.form.get("platform", "instagram")
+
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    try:
+        filename = secure_filename(file.filename)
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+        file.save(temp_file.name)
+
+        validate_file_size(temp_file.name)
+        validate_zip(temp_file.name)
+        check_zip_safety(temp_file.name)
+
+        job_id = os.urandom(16).hex()
+
+        if platform == "snapchat":
+            threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name)).start()
+        else:
+            threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name)).start()
+
+        return jsonify({"job_id": job_id})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
