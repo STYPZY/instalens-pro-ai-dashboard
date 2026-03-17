@@ -155,14 +155,12 @@ async function startUpload(platform) {
   try {
     // 1. Get signed upload params from our server
     const sigRes = await fetch('/get-upload-signature');
-    const { signature, timestamp, cloud_name, api_key } = await sigRes.json();
+    const { cloud_name, upload_preset } = await sigRes.json();
 
     // 2. Upload directly to Cloudinary with XHR for progress tracking
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('api_key', api_key);
-    formData.append('timestamp', timestamp);
-    formData.append('signature', signature);
+    formData.append('upload_preset', upload_preset);
 
     const publicId = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();

@@ -123,17 +123,10 @@ def analyze_snapchat_zip(job_id, zip_path):
 
 @app.route("/get-upload-signature")
 def get_upload_signature():
-    timestamp = int(time.time())
-    params = {
-        "timestamp": timestamp,
-        "resource_type": "raw",
-    }
-    signature = cloudinary.utils.api_sign_request(params, os.environ.get("CLOUDINARY_API_SECRET"))
     return jsonify({
-        "signature": signature,
-        "timestamp": timestamp,
         "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
         "api_key": os.environ.get("CLOUDINARY_API_KEY"),
+        "upload_preset": os.environ.get("CLOUDINARY_UPLOAD_PRESET"),
     })
 
 
