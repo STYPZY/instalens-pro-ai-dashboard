@@ -125,7 +125,8 @@ def analyze_snapchat_zip(job_id, zip_path):
 def get_upload_signature():
     timestamp = int(time.time())
     params = {
-    "timestamp": timestamp,
+        "timestamp": timestamp,
+        "resource_type": "raw",
     }
     signature = cloudinary.utils.api_sign_request(params, os.environ.get("CLOUDINARY_API_SECRET"))
     return jsonify({
@@ -146,12 +147,7 @@ def process_from_cloudinary():
         return jsonify({"error": "No public_id provided"}), 400
 
     try:
-        url, _ = cloudinary.utils.cloudinary_url(
-        public_id,
-        resource_type="raw",
-        type="upload",
-        sign_url=True,
-        )
+        url      = cloudinary.utils.cloudinary_url(public_id, resource_type="raw")[0]
         response = http_requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
 
@@ -182,6 +178,8 @@ def process_from_cloudinary():
         return jsonify({"job_id": job_id})
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
@@ -472,4 +470,4 @@ def snapchat_export_chat_csv(dashboard_id):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
