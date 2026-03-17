@@ -33,12 +33,3 @@ gunicorn
 # ffprobe   →  sudo apt install ffmpeg                   (Ubuntu/Debian)
 #              brew install ffmpeg                        (macOS)
 # Both are required for MediaForensics / metadata analysis features.
-```
-
----
-
-## What Changed:
-
-**Added:**
-```
-python-dotenv==1.0.0
