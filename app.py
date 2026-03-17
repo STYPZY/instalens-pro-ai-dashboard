@@ -6,6 +6,10 @@ import os
 import time
 import requests as http_requests
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 # Cloudinary
 import cloudinary
 import cloudinary.uploader
