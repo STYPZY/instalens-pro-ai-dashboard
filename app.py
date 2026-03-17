@@ -140,7 +140,14 @@ def process_from_cloudinary():
         return jsonify({"error": "No public_id provided"}), 400
 
     try:
-        url      = f"https://res.cloudinary.com/dpremvspd/raw/upload/{public_id}"
+        # Generate a signed URL so server can download the file
+        url = cloudinary.utils.cloudinary_url(
+            public_id,
+            resource_type="raw",
+            type="upload",
+            sign_url=True,
+        )[0]
+
         response = http_requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
 
