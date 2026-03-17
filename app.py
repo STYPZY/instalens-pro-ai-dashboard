@@ -40,9 +40,9 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 # ─────────────────────────────────────────────
 
 cloudinary.config(
-    cloud_name="dpremvspd",
-    api_key="518213445682397",
-    api_secret="MXJuAYaxa6hVVmOo0zqvREhzVa4",
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
 )
 
 processing_jobs = {}
@@ -124,9 +124,9 @@ def analyze_snapchat_zip(job_id, zip_path):
 @app.route("/get-upload-signature")
 def get_upload_signature():
     return jsonify({
-        "cloud_name": "dpremvspd",
-        "api_key": "518213445682397",
-        "upload_preset": "instalens_upload",
+        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        "api_key": os.environ.get("CLOUDINARY_API_KEY"),
+        "upload_preset": os.environ.get("CLOUDINARY_UPLOAD_PRESET", "instalens_upload"),
     })
 
 
@@ -141,10 +141,14 @@ def process_from_cloudinary():
 
     try:
         # Generate a signed URL so server can download the file
-        url = f"https://api.cloudinary.com/v1_1/dpremvspd/resources/raw/upload/{public_id}"
+        cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+        api_key = os.environ.get("CLOUDINARY_API_KEY")
+        api_secret = os.environ.get("CLOUDINARY_API_SECRET")
+        
+        url = f"https://api.cloudinary.com/v1_1/{cloud_name}/resources/raw/upload/{public_id}"
         response = http_requests.get(
             url,
-            auth=("518213445682397", "MXJuAYaxa6hVVmOo0zqvREhzVa4"),
+            auth=(api_key, api_secret),
             stream=True,
             timeout=300
         )
