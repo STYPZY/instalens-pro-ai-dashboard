@@ -40,9 +40,9 @@ app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 # ─────────────────────────────────────────────
 
 cloudinary.config(
-    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    cloud_name="dpremvspd",
+    api_key="518213445682397",
+    api_secret="MXJuAYaxa6hVVmOo0zqvREhzVa4",
 )
 
 processing_jobs = {}
