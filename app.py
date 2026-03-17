@@ -3,6 +3,13 @@ from werkzeug.utils import secure_filename
 import threading
 import tempfile
 import os
+import time
+import requests as http_requests
+
+# Cloudinary
+import cloudinary
+import cloudinary.uploader
+import cloudinary.utils
 
 # Parsing — Instagram
 from parser.zip_reader import read_instagram_zip
@@ -27,6 +34,16 @@ from analytics.ranking_analysis import interaction_ranking, loyal_followers
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
+
+# ─────────────────────────────────────────────
+#  CLOUDINARY CONFIG
+# ─────────────────────────────────────────────
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+)
 
 processing_jobs = {}
 
@@ -66,6 +83,12 @@ def analyze_instagram_zip(job_id, zip_path):
         processing_jobs[job_id] = dashboard_id
     except Exception as e:
         processing_jobs[job_id] = {"error": str(e)}
+    finally:
+        try:
+            if os.path.exists(zip_path):
+                os.unlink(zip_path)
+        except Exception:
+            pass
 
 
 # ─────────────────────────────────────────────
@@ -86,6 +109,88 @@ def analyze_snapchat_zip(job_id, zip_path):
         processing_jobs[job_id] = dashboard_id
     except Exception as e:
         processing_jobs[job_id] = {"error": str(e)}
+    finally:
+        try:
+            if os.path.exists(zip_path):
+                os.unlink(zip_path)
+        except Exception:
+            pass
+
+
+# ─────────────────────────────────────────────
+#  CLOUDINARY ROUTES
+# ─────────────────────────────────────────────
+
+@app.route("/get-upload-signature")
+def get_upload_signature():
+    timestamp = int(time.time())
+    params = {
+        "timestamp": timestamp,
+        "resource_type": "raw",
+    }
+    signature = cloudinary.utils.api_sign_request(params, os.environ.get("CLOUDINARY_API_SECRET"))
+    return jsonify({
+        "signature": signature,
+        "timestamp": timestamp,
+        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
+        "api_key": os.environ.get("CLOUDINARY_API_KEY"),
+    })
+
+
+@app.route("/process-from-cloudinary", methods=["POST"])
+def process_from_cloudinary():
+    data      = request.get_json()
+    public_id = data.get("public_id")
+    platform  = data.get("platform", "instagram")
+
+    if not public_id:
+        return jsonify({"error": "No public_id provided"}), 400
+
+    try:
+        url      = cloudinary.utils.cloudinary_url(public_id, resource_type="raw")[0]
+        response = http_requests.get(url, stream=True, timeout=300)
+        response.raise_for_status()
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+        for chunk in response.iter_content(chunk_size=65536):
+            temp_file.write(chunk)
+        temp_file.flush()
+        temp_file.close()
+
+        # Delete from Cloudinary immediately after downloading
+        try:
+            cloudinary.uploader.destroy(public_id, resource_type="raw", invalidate=True)
+        except Exception:
+            pass
+
+        try:
+            validate_file_size(temp_file.name)
+        except ValueError as e:
+            os.unlink(temp_file.name)
+            return jsonify({"error": str(e)}), 400
+
+        job_id = os.urandom(16).hex()
+        if platform == "snapchat":
+            threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name)).start()
+        else:
+            threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name)).start()
+
+        return jsonify({"job_id": job_id})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/cleanup-cloudinary", methods=["POST"])
+def cleanup_cloudinary():
+    try:
+        data      = request.get_json(force=True, silent=True) or {}
+        public_id = data.get("public_id")
+        if public_id:
+            cloudinary.uploader.destroy(public_id, resource_type="raw", invalidate=True)
+    except Exception:
+        pass
+    return "", 204
 
 
 # ─────────────────────────────────────────────
@@ -109,22 +214,8 @@ def processing(job_id):
 #  INSTAGRAM ROUTES
 # ─────────────────────────────────────────────
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET"])
 def index():
-    if request.method == "POST":
-        file = request.files.get("file")
-        if not file or not file.filename:
-            return render_template("index.html", error="Please select a file before submitting.", snap_dashboard_id=None)
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-        file.save(temp_file.name)
-        try:
-            validate_file_size(temp_file.name)
-        except ValueError as e:
-            os.unlink(temp_file.name)
-            return render_template("index.html", error=str(e))
-        job_id = os.urandom(16).hex()
-        threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name)).start()
-        return redirect(url_for("processing", job_id=job_id))
     return render_template("index.html", error=None, snap_dashboard_id=None)
 
 
@@ -211,7 +302,7 @@ def media_analysis():
         file.save(temp_file.name)
         try:
             from analytics.forensic_analyzer import analyze_file
-            report = analyze_file(temp_file.name)
+            report       = analyze_file(temp_file.name)
             report["filename"] = original_name
             search_links = reverse_search_urls(temp_file.name)
             return render_template("metadata_report.html", report=report, filename=original_name, search_links=search_links)
@@ -278,28 +369,13 @@ def api_search(dashboard_id):
 #  SNAPCHAT ROUTES
 # ─────────────────────────────────────────────
 
-@app.route("/snapchat", methods=["GET", "POST"])
+@app.route("/snapchat", methods=["GET"])
 def snapchat_upload():
-    if request.method == "POST":
-        file = request.files.get("file")
-        if not file or not file.filename:
-            return render_template("snapchat_upload.html", error="Please select a file before submitting.")
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-        file.save(temp_file.name)
-        try:
-            validate_file_size(temp_file.name)
-        except ValueError as e:
-            os.unlink(temp_file.name)
-            return render_template("snapchat_upload.html", error=str(e))
-        job_id = os.urandom(16).hex()
-        threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name)).start()
-        return redirect(url_for("processing", job_id=job_id))
     return render_template("snapchat_upload.html", error=None)
 
 
 @app.route("/snapchat/debug/<dashboard_id>")
 def snapchat_debug(dashboard_id):
-    """Temporary debug route — shows raw export structure."""
     stored = get_dashboard(dashboard_id)
     if not stored:
         return "Session expired"

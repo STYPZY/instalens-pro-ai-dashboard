@@ -18,6 +18,9 @@ hachoir
 # ── HTTP ──
 requests
 
+# ── Cloudinary (temp storage for large uploads) ──
+cloudinary
+
 # ── Production server ──
 gunicorn
 

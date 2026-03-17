@@ -232,5 +232,17 @@ a.classList.add('active');
 });
 </script>
 
+
+<script>
+// Clean up any pending Cloudinary upload if user closes/navigates away
+window.addEventListener('beforeunload', function() {
+  const publicId = sessionStorage.getItem('cloudinary_public_id');
+  if (publicId) {
+    navigator.sendBeacon('/cleanup-cloudinary', JSON.stringify({ public_id: publicId }));
+    sessionStorage.removeItem('cloudinary_public_id');
+  }
+});
+</script>
+
 </body>
 </html>

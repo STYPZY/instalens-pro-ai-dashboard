@@ -24,51 +24,62 @@
   </div>
   {% endif %}
 
+  <div id="error-box" style="display:none;background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#fb7185;font-family:var(--font-mono);"></div>
+
   <div style="background:rgba(255,252,0,0.05);border:1px solid rgba(255,252,0,0.15);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:rgba(255,252,0,0.7);font-family:var(--font-mono);">
     ℹ Request your export at <strong>accounts.snapchat.com → My Data</strong>. You'll receive a ZIP file via email within 24–48 hours.
   </div>
 
-  <form method="POST" enctype="multipart/form-data" action="{{ url_for('snapchat_upload') }}" id="snap-form">
-    <div class="upload-zone" id="upload-zone">
-      <input type="file" name="file" id="file-input" accept=".zip">
+  <div class="upload-zone" id="upload-zone">
+    <input type="file" name="file" id="file-input" accept=".zip">
 
-      <div id="upload-default">
-        <div class="upload-icon" style="background:rgba(255,252,0,0.08);border-color:rgba(255,252,0,0.2);color:#fffc00;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </div>
-        <div class="upload-title">Drop your Snapchat export here</div>
-        <div class="upload-sub">or click to browse from your device</div>
-        <div class="format-tags">
-          <span class="format-tag">.zip</span>
-          <span class="format-tag">Snapchat Export</span>
-          <span class="format-tag">json/ folder</span>
-        </div>
+    <div id="upload-default">
+      <div class="upload-icon" style="background:rgba(255,252,0,0.08);border-color:rgba(255,252,0,0.2);color:#fffc00;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
       </div>
-
-      <div id="upload-selected" style="display:none;">
-        <div class="upload-icon selected">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </div>
-        <div class="upload-title" style="color:var(--accent-primary);">File Ready</div>
-        <div class="upload-filename" id="upload-filename">—</div>
-        <div class="upload-filesize" id="upload-filesize">—</div>
+      <div class="upload-title">Drop your Snapchat export here</div>
+      <div class="upload-sub">or click to browse from your device</div>
+      <div class="format-tags">
+        <span class="format-tag">.zip</span>
+        <span class="format-tag">Snapchat Export</span>
+        <span class="format-tag">json/ folder</span>
       </div>
     </div>
 
-    <div style="margin-top:20px;display:flex;align-items:center;gap:12px;">
-      <button type="submit" id="submit-btn">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        Analyze Export
-      </button>
-      <span id="submit-hint" style="font-size:11.5px;color:var(--text-muted);">Select a file to continue</span>
+    <div id="upload-selected" style="display:none;">
+      <div class="upload-icon selected">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <div class="upload-title" style="color:var(--accent-primary);">File Ready</div>
+      <div class="upload-filename" id="upload-filename">—</div>
+      <div class="upload-filesize" id="upload-filesize">—</div>
     </div>
-  </form>
+  </div>
+
+  <!-- Progress bar -->
+  <div id="progress-wrap" style="display:none;margin-top:14px;">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">
+      <span id="progress-label">Uploading…</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div style="background:var(--bg-raised);border-radius:4px;height:4px;overflow:hidden;">
+      <div id="progress-bar" style="height:100%;width:0%;background:#fffc00;transition:width 0.2s ease;border-radius:4px;"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;display:flex;align-items:center;gap:12px;">
+    <button type="button" id="submit-btn" onclick="startUpload('snapchat')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Analyze Export
+    </button>
+    <span id="submit-hint" style="font-size:11.5px;color:var(--text-muted);">Select a file to continue</span>
+  </div>
 </div>
 
 <style>
@@ -79,16 +90,19 @@
 </style>
 
 <script>
-const fileInput   = document.getElementById('file-input');
-const zone        = document.getElementById('upload-zone');
-const defaultView = document.getElementById('upload-default');
-const selectedView= document.getElementById('upload-selected');
-const filenameEl  = document.getElementById('upload-filename');
-const filesizeEl  = document.getElementById('upload-filesize');
-const hint        = document.getElementById('submit-hint');
-const submitBtn   = document.getElementById('submit-btn');
-const form        = document.getElementById('snap-form');
-const zoneBox     = document.getElementById('upload-zone');
+const fileInput    = document.getElementById('file-input');
+const zone         = document.getElementById('upload-zone');
+const defaultView  = document.getElementById('upload-default');
+const selectedView = document.getElementById('upload-selected');
+const filenameEl   = document.getElementById('upload-filename');
+const filesizeEl   = document.getElementById('upload-filesize');
+const hint         = document.getElementById('submit-hint');
+const submitBtn    = document.getElementById('submit-btn');
+const errorBox     = document.getElementById('error-box');
+const progressWrap = document.getElementById('progress-wrap');
+const progressBar  = document.getElementById('progress-bar');
+const progressPct  = document.getElementById('progress-pct');
+const progressLbl  = document.getElementById('progress-label');
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -96,9 +110,18 @@ function formatSize(bytes) {
   return (bytes/(1024*1024)).toFixed(1) + ' MB';
 }
 
+function showError(msg) {
+  errorBox.textContent = '⚠ ' + msg;
+  errorBox.style.display = 'block';
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Analyze Export';
+  progressWrap.style.display = 'none';
+}
+
 fileInput.addEventListener('change', function() {
   const file = this.files[0];
   if (!file) return;
+  errorBox.style.display   = 'none';
   defaultView.style.display  = 'none';
   selectedView.style.display = '';
   zone.classList.add('file-ready');
@@ -116,27 +139,76 @@ zone.addEventListener('drop', e => {
   fileInput.dispatchEvent(new Event('change'));
 });
 
-form.addEventListener('submit', function() {
+async function startUpload(platform) {
+  const file = fileInput.files[0];
+  if (!file) { showError('Please select a file before submitting.'); return; }
+
   submitBtn.disabled = true;
-  submitBtn.innerHTML = 'Processing...';
-  hint.textContent = 'Analyzing export...';
-  hint.style.color = '#2dd4bf';
-  zoneBox.style.position = 'relative';
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-surface);border-radius:inherit;z-index:10;';
-  overlay.innerHTML = `
-    <div class="upload-icon selected">
-      <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" fill="none">
-        <circle cx="12" cy="12" r="10" stroke-width="2" stroke-dasharray="60">
-          <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    </div>
-    <div class="upload-title" style="margin-top:12px;">Processing Export</div>
-    <div class="upload-sub">Parsing Snapchat data — please wait</div>
-  `;
-  zoneBox.appendChild(overlay);
-});
+  submitBtn.innerHTML = 'Uploading…';
+  hint.textContent    = 'Uploading to secure storage…';
+  hint.style.color    = '#fffc00';
+  errorBox.style.display = 'none';
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressLbl.textContent = 'Uploading…';
+
+  try {
+    const sigRes = await fetch('/get-upload-signature');
+    const { signature, timestamp, cloud_name, api_key } = await sigRes.json();
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', api_key);
+    formData.append('timestamp', timestamp);
+    formData.append('signature', signature);
+
+    const publicId = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          sessionStorage.setItem('cloudinary_public_id', data.public_id);
+          resolve(data.public_id);
+        } else {
+          reject(new Error('Cloudinary upload failed: ' + xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
+    });
+
+    progressBar.style.width = '100%';
+    progressPct.textContent = '100%';
+    progressLbl.textContent = 'Processing…';
+    submitBtn.innerHTML = 'Processing…';
+
+    const processRes = await fetch('/process-from-cloudinary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_id: publicId, platform: platform })
+    });
+    const processData = await processRes.json();
+
+    if (processData.error) { showError(processData.error); return; }
+
+    sessionStorage.removeItem('cloudinary_public_id');
+    window.location.href = '/processing/' + processData.job_id;
+
+  } catch (err) {
+    showError(err.message || 'Upload failed. Please try again.');
+  }
+}
 </script>
 
 {% endblock %}
