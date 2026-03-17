@@ -141,14 +141,13 @@ def process_from_cloudinary():
 
     try:
         # Generate a signed URL so server can download the file
-        url = cloudinary.utils.cloudinary_url(
-            public_id,
-            resource_type="raw",
-            type="upload",
-            sign_url=True,
-        )[0]
-
-        response = http_requests.get(url, stream=True, timeout=300)
+        url = f"https://api.cloudinary.com/v1_1/dpremvspd/resources/raw/upload/{public_id}"
+        response = http_requests.get(
+            url,
+            auth=("518213445682397", "MXJuAYaxa6hVVmOo0zqvREhzVa4"),
+            stream=True,
+            timeout=300
+        )
         response.raise_for_status()
 
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
