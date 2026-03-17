@@ -124,9 +124,9 @@ def analyze_snapchat_zip(job_id, zip_path):
 @app.route("/get-upload-signature")
 def get_upload_signature():
     return jsonify({
-        "cloud_name": "dpremvspd",
-        "api_key": "518213445682397",
-        "upload_preset": "ml_default",
+        "cloud_name": os.environ.get("dpremvspd"),
+        "api_key": os.environ.get("518213445682397"),
+        "upload_preset": os.environ.get("ml_default"),
     })
 
 
@@ -140,7 +140,7 @@ def process_from_cloudinary():
         return jsonify({"error": "No public_id provided"}), 400
 
     try:
-        url      = cloudinary.utils.cloudinary_url(public_id, resource_type="raw")[0]
+        url      = f"https://res.cloudinary.com/dpremvspd/raw/upload/{public_id}"
         response = http_requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
 
