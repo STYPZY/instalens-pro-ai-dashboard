@@ -126,7 +126,7 @@ def get_upload_signature():
     return jsonify({
         "cloud_name": os.environ.get("dpremvspd"),
         "api_key": os.environ.get("518213445682397"),
-        "upload_preset": os.environ.get("ml_default"),
+        "upload_preset": os.environ.get("instalens_upload"),
     })
 
 
