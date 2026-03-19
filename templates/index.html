@@ -26,6 +26,7 @@
 
   <div id="error-box" style="display:none;background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#fb7185;font-family:var(--font-mono);"></div>
 
+  <!-- No form — upload handled entirely by JS -->
   <div class="upload-zone" id="upload-zone">
     <input type="file" name="file" id="file-input" accept=".zip,.json">
 
@@ -39,11 +40,16 @@
       </div>
       <div class="upload-title">Drop your export here</div>
       <div class="upload-sub">or click to browse from your device</div>
+      <div class="format-tags">
+        <span class="format-tag">.zip</span>
+        <span class="format-tag">.json</span>
+        <span class="format-tag">Instagram Export</span>
+      </div>
     </div>
 
     <div id="upload-selected" style="display:none;">
       <div class="upload-icon selected">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
       </div>
@@ -53,36 +59,49 @@
     </div>
   </div>
 
+  <!-- Progress bar (hidden until upload starts) -->
   <div id="progress-wrap" style="display:none;margin-top:14px;">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:6px;">
-      <span id="progress-label">Initializing upload…</span>
+      <span id="progress-label">Uploading…</span>
       <span id="progress-pct">0%</span>
     </div>
-    <div style="background:#222;border-radius:4px;height:4px;overflow:hidden;">
-      <div id="progress-bar" style="height:100%;width:0%;background:#4f8ef7;transition:width 0.3s ease;border-radius:4px;"></div>
+    <div style="background:var(--bg-raised);border-radius:4px;height:4px;overflow:hidden;">
+      <div id="progress-bar" style="height:100%;width:0%;background:var(--accent-primary);transition:width 0.2s ease;border-radius:4px;"></div>
     </div>
   </div>
 
-  <div style="margin-top: 20px;">
+  <div style="margin-top: 20px; display: flex; align-items: center; gap: 12px;">
     <button type="button" id="submit-btn" onclick="startUpload('instagram')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
       Analyze Export
     </button>
+    <span id="submit-hint" style="font-size: 11.5px; color: var(--text-muted);">Select a file to continue</span>
   </div>
 </div>
 
+<style>
+.upload-zone.file-ready { border-color: var(--accent-primary); background: rgba(79,142,247,0.04); }
+.upload-icon.selected { background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.3); color: #2dd4bf; }
+.upload-filename { font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px;font-family:var(--font-mono);word-break:break-all; }
+.upload-filesize { font-size:11px;color:var(--text-muted);font-family:var(--font-mono); }
+</style>
+
 <script>
-const fileInput = document.getElementById('file-input');
-const filenameEl = document.getElementById('upload-filename');
-const filesizeEl = document.getElementById('upload-filesize');
-const progressBar = document.getElementById('progress-bar');
-const progressPct = document.getElementById('progress-pct');
-const progressLbl = document.getElementById('progress-label');
-const progressWrap = document.getElementById('progress-wrap');
-const submitBtn = document.getElementById('submit-btn');
-const errorBox = document.getElementById('error-box');
-const zone = document.getElementById('upload-zone');
-const defaultView = document.getElementById('upload-default');
+const fileInput    = document.getElementById('file-input');
+const zone         = document.getElementById('upload-zone');
+const defaultView  = document.getElementById('upload-default');
 const selectedView = document.getElementById('upload-selected');
+const filenameEl   = document.getElementById('upload-filename');
+const filesizeEl   = document.getElementById('upload-filesize');
+const hint         = document.getElementById('submit-hint');
+const submitBtn    = document.getElementById('submit-btn');
+const errorBox     = document.getElementById('error-box');
+const progressWrap = document.getElementById('progress-wrap');
+const progressBar  = document.getElementById('progress-bar');
+const progressPct  = document.getElementById('progress-pct');
+const progressLbl  = document.getElementById('progress-label');
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -90,165 +109,177 @@ function formatSize(bytes) {
   return (bytes/(1024*1024)).toFixed(1) + ' MB';
 }
 
+function showError(msg) {
+  errorBox.textContent = '⚠ ' + msg;
+  errorBox.style.display = 'block';
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Analyze Export';
+  progressWrap.style.display = 'none';
+}
+
 fileInput.addEventListener('change', function() {
   const file = this.files[0];
   if (!file) return;
-
-  defaultView.style.display = 'none';
+  errorBox.style.display   = 'none';
+  defaultView.style.display  = 'none';
   selectedView.style.display = '';
   zone.classList.add('file-ready');
   filenameEl.textContent = file.name;
   filesizeEl.textContent = formatSize(file.size);
+  hint.textContent       = 'Ready to analyze — click the button';
+  hint.style.color       = '#2dd4bf';
 });
 
-zone.addEventListener('dragover', e => { 
-  e.preventDefault(); 
-  zone.classList.add('file-ready'); 
-});
-
-zone.addEventListener('dragleave', () => { 
-  if (!fileInput.files.length) zone.classList.remove('file-ready'); 
-});
-
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('file-ready'); });
+zone.addEventListener('dragleave', () => { if (!fileInput.files.length) zone.classList.remove('file-ready'); });
 zone.addEventListener('drop', e => {
   e.preventDefault();
   fileInput.files = e.dataTransfer.files;
   fileInput.dispatchEvent(new Event('change'));
 });
 
-function showError(msg) {
-  errorBox.textContent = '⚠ ' + msg;
-  errorBox.style.display = 'block';
-  submitBtn.disabled = false;
-  progressWrap.style.display = 'none';
-}
-
 async function startUpload(platform) {
   const file = fileInput.files[0];
-  if (!file) return showError("Select a file");
+  if (!file) { 
+    showError('Please select a file before submitting.'); 
+    return; 
+  }
 
-  const isLocal =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
-
-  progressWrap.style.display = 'block';
   submitBtn.disabled = true;
+  submitBtn.innerHTML = 'Uploading…';
+  hint.textContent    = 'Uploading…';
+  hint.style.color    = '#2dd4bf';
   errorBox.style.display = 'none';
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressLbl.textContent = 'Uploading…';
 
-  // ✅ LOCAL MODE
-  if (isLocal) {
-    try {
-      progressLbl.textContent = 'Uploading file…';
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("platform", platform);
+  try {
+    // STEP 1: Check if Cloudinary is available
+    const sigRes = await fetch('/get-upload-signature');
+    const sigData = await sigRes.json();
 
-      // Simulate progress for local upload (no real progress tracking available)
-      const progressInterval = setInterval(() => {
-        const currentWidth = parseInt(progressBar.style.width) || 0;
-        if (currentWidth < 90) {
-          const newWidth = currentWidth + Math.random() * 30;
-          progressBar.style.width = Math.min(newWidth, 90) + '%';
-          progressPct.textContent = Math.min(Math.floor(newWidth), 90) + '%';
-        }
-      }, 300);
-
-      const res = await fetch("/upload-local", {
-        method: "POST",
-        body: formData
-      });
-
-      clearInterval(progressInterval);
-      const data = await res.json();
-
-      if (data.error) return showError(data.error);
-
-      // Upload succeeded
-      progressBar.style.width = '100%';
-      progressPct.textContent = '100%';
-      progressLbl.textContent = 'Processing…';
-
-      // Redirect to processing page
-      setTimeout(() => {
-        window.location.href = "/processing/" + data.job_id;
-      }, 500);
-
-    } catch (err) {
-      showError(err.message);
+    // If Cloudinary is disabled (local_only flag set), use local upload
+    if (sigData.local_only === true) {
+      console.log('📤 Cloudinary disabled - using local upload');
+      await uploadLocal(file, platform);
+      return;
     }
 
-  } else {
-    // 🌐 CLOUDINARY MODE
-    try {
-      progressLbl.textContent = 'Getting upload credentials…';
-      const sigRes = await fetch('/get-upload-signature');
+    // If error but not local_only, show error
+    if (!sigRes.ok) {
+      showError(sigData.error || 'Upload configuration failed');
+      return;
+    }
+
+    // STEP 2: Upload to Cloudinary (production mode)
+    console.log('☁️  Uploading to Cloudinary');
+    const { signature, timestamp, cloud_name, api_key } = sigData;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', api_key);
+    formData.append('timestamp', timestamp);
+    formData.append('signature', signature);
+
+    const publicId = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          sessionStorage.setItem('cloudinary_public_id', data.public_id);
+          resolve(data.public_id);
+        } else {
+          reject(new Error('Cloudinary upload failed: ' + xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
+    });
+
+    // STEP 3: Tell server to process it
+    progressBar.style.width = '100%';
+    progressPct.textContent = '100%';
+    progressLbl.textContent = 'Processing…';
+    submitBtn.innerHTML = 'Processing…';
+
+    const processRes = await fetch('/process-from-cloudinary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_id: publicId, platform: platform })
+    });
+    const processData = await processRes.json();
+
+    if (processData.error) { 
+      showError(processData.error); 
+      return; 
+    }
+
+    // STEP 4: Redirect to processing page
+    sessionStorage.removeItem('cloudinary_public_id');
+    window.location.href = '/processing/' + processData.job_id;
+
+  } catch (err) {
+    showError(err.message || 'Upload failed. Please try again.');
+  }
+}
+
+// Local upload fallback
+async function uploadLocal(file, platform) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('platform', platform);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload-local');
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      const data = JSON.parse(xhr.responseText);
       
-      if (!sigRes.ok) {
-        const sigData = await sigRes.json();
-        return showError(sigData.error || 'Failed to get upload credentials');
+      if (data.error) {
+        showError(data.error);
+        return;
       }
 
-      const { cloud_name, upload_preset } = await sigRes.json();
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', upload_preset);
-
-      progressLbl.textContent = 'Uploading to Cloudinary…';
-
-      const publicId = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 100);
-            progressBar.style.width = pct + '%';
-            progressPct.textContent = pct + '%';
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data.public_id);
-          } else {
-            reject(new Error('Cloudinary upload failed: ' + xhr.status));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Network error during upload'));
-        xhr.send(formData);
-      });
-
-      progressLbl.textContent = 'Processing on server…';
-      progressBar.style.width = '95%';
-      progressPct.textContent = '95%';
-
-      const processRes = await fetch('/process-from-cloudinary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ public_id: publicId, platform: platform })
-      });
-
-      const processData = await processRes.json();
-
-      if (processData.error) return showError(processData.error);
-
-      // Upload succeeded
       progressBar.style.width = '100%';
       progressPct.textContent = '100%';
       progressLbl.textContent = 'Processing…';
-
-      // Redirect to processing page
+      submitBtn.innerHTML = 'Processing…';
+      
       setTimeout(() => {
-        window.location.href = '/processing/' + processData.job_id;
+        window.location.href = '/processing/' + data.job_id;
       }, 500);
-
-    } catch (err) {
-      showError(err.message);
+    } else {
+      const data = JSON.parse(xhr.responseText);
+      showError(data.error || 'Upload failed');
     }
-  }
+  };
+
+  xhr.onerror = () => {
+    showError('Network error during upload');
+  };
+
+  xhr.send(formData);
 }
 </script>
 

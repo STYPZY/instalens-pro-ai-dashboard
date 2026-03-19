@@ -7,6 +7,7 @@ import time
 import requests as http_requests
 import logging
 from threading import Lock
+import socket
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -46,23 +47,67 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 1024
 
 # ─────────────────────────────────────────────
-#  CLOUDINARY CONFIG
+#  CLOUDINARY CONFIG - DETECT LOCALHOST PROPERLY
 # ─────────────────────────────────────────────
 
 cloudinary_enabled = False
-if os.environ.get("CLOUDINARY_CLOUD_NAME"):
-    try:
-        cloudinary.config(
-            cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-            api_key=os.environ.get("CLOUDINARY_API_KEY"),
-            api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
-        )
-        cloudinary_enabled = True
-        logger.info("✅ Cloudinary configured successfully")
-    except Exception as e:
-        logger.warning(f"⚠️  Cloudinary config failed: {str(e)}")
+
+# ✅ METHOD 1: Check if explicitly told to use local mode
+if os.environ.get('FORCE_LOCAL_MODE') == 'true' or os.environ.get('SKIP_CLOUDINARY') == 'true':
+    logger.info("🔵 FORCE_LOCAL_MODE detected - Forcing LOCAL UPLOADS ONLY")
+    cloudinary_enabled = False
+
 else:
-    logger.info("ℹ️  Cloudinary not configured - local uploads only")
+    # ✅ METHOD 2: Detect if running on localhost by checking hostname
+    try:
+        hostname = socket.gethostname()
+        local_ips = socket.gethostbyname_ex(hostname)[2]
+
+        logger.info(f"🔍 Server Hostname: {hostname}")
+        logger.info(f"🔍 Server IPs: {local_ips}")
+
+        is_localhost_machine = any(
+            ip.startswith('127.') or
+            ip.startswith('192.168.') or
+            ip.startswith('10.') or
+            ip.startswith('172.')
+            for ip in local_ips
+        ) or hostname.lower() in ['localhost', 'desktop', 'pc']
+
+        logger.info(f"🔍 Is Local Machine: {is_localhost_machine}")
+
+    except Exception as e:
+        logger.warning(f"⚠️  Could not detect hostname: {str(e)}")
+        is_localhost_machine = False
+
+    if is_localhost_machine:
+        logger.info("🔵 LOCAL MACHINE DETECTED - Forcing LOCAL UPLOADS ONLY")
+        logger.info("   Even though Cloudinary credentials may exist in .env")
+        cloudinary_enabled = False
+    else:
+        has_cloudinary_credentials = bool(
+            os.environ.get("CLOUDINARY_CLOUD_NAME") and
+            os.environ.get("CLOUDINARY_API_KEY") and
+            os.environ.get("CLOUDINARY_API_SECRET")
+        )
+
+        if has_cloudinary_credentials:
+            try:
+                cloudinary.config(
+                    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+                    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+                    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+                )
+                cloudinary_enabled = True
+                logger.info("✅ PRODUCTION MODE - Cloudinary configured successfully")
+                logger.info(f"   Cloud: {os.environ.get('CLOUDINARY_CLOUD_NAME')}")
+            except Exception as e:
+                logger.warning(f"⚠️  Cloudinary config failed: {str(e)}")
+                cloudinary_enabled = False
+        else:
+            logger.info("🔵 LOCAL MODE - Cloudinary credentials not found")
+            logger.info("   Using LOCAL UPLOADS ONLY")
+            cloudinary_enabled = False
 
 
 # ─────────────────────────────────────────────
@@ -73,11 +118,13 @@ processing_jobs = {}
 jobs_lock = Lock()
 
 
-def set_job_status(job_id, status):
+def set_job_status(job_id, status, dashboard_id=None, error=None):
     """Thread-safe job status update"""
     with jobs_lock:
         processing_jobs[job_id] = {
             "status": status,
+            "dashboard_id": dashboard_id,
+            "error": error,
             "timestamp": time.time()
         }
 
@@ -86,16 +133,6 @@ def get_job_status(job_id):
     """Thread-safe job status retrieval"""
     with jobs_lock:
         return processing_jobs.get(job_id)
-
-
-def cleanup_old_jobs():
-    """Remove jobs older than 30 minutes"""
-    with jobs_lock:
-        current_time = time.time()
-        expired = [jid for jid, data in processing_jobs.items() 
-                  if current_time - data.get("timestamp", current_time) > 1800]
-        for jid in expired:
-            del processing_jobs[jid]
 
 
 # ─────────────────────────────────────────────
@@ -112,42 +149,14 @@ def _expired():
 
 def analyze_instagram_zip(job_id, zip_path):
     try:
-        set_job_status(job_id, "processing")
-        logger.info(f"[{job_id}] Starting Instagram analysis...")
-        
-        # ✅ SAFE VALIDATION (does NOT stop execution)
-        try:
-            validate_zip(zip_path)
-            check_zip_safety(zip_path)
-            logger.info(f"[{job_id}] ZIP validation passed")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Validation warning: {str(e)}")
-
-        # 🔍 DEBUG: show zip structure
-        import zipfile
-        try:
-            with zipfile.ZipFile(zip_path, 'r') as z:
-                logger.info(f"[{job_id}] ZIP contents: {z.namelist()[:10]}")
-        except Exception as e:
-            logger.error(f"[{job_id}] ZIP read error: {str(e)}")
-
-        # ✅ SAFE PARSE
-        try:
-            folder = read_instagram_zip(zip_path)
-            logger.info(f"[{job_id}] Successfully extracted Instagram ZIP")
-        except Exception as e:
-            error_msg = f"This is not a valid Instagram export (JSON format expected). Details: {str(e)}"
-            set_job_status(job_id, {"error": error_msg, "dashboard_id": None})
-            logger.error(f"[{job_id}] {error_msg}")
-            return
-
+        validate_zip(zip_path)
+        check_zip_safety(zip_path)
+        folder       = read_instagram_zip(zip_path)
         connections, export_type = parse_connections(folder)
-
         analysis     = relationship_stats(connections)
         ghosts       = ghost_followers(connections)
         ranking      = interaction_ranking(connections)
         loyal        = loyal_followers(connections)
-
         dashboard_id = create_dashboard({
             "type":        "instagram",
             "connections": connections,
@@ -158,22 +167,16 @@ def analyze_instagram_zip(job_id, zip_path):
             "ranking":     ranking,
             "loyal":       loyal,
         })
-
-        set_job_status(job_id, {"status": "complete", "dashboard_id": dashboard_id})
-        logger.info(f"[{job_id}] Analysis complete. Dashboard ID: {dashboard_id}")
-
+        set_job_status(job_id, "complete", dashboard_id=dashboard_id)
     except Exception as e:
-        error_msg = f"Processing failed: {str(e)}"
-        set_job_status(job_id, {"error": error_msg, "dashboard_id": None})
-        logger.error(f"[{job_id}] {error_msg}")
-
+        logger.error(f"Instagram analysis error: {str(e)}")
+        set_job_status(job_id, "error", error=str(e))
     finally:
         try:
             if os.path.exists(zip_path):
                 os.unlink(zip_path)
-                logger.info(f"[{job_id}] Cleaned up temp file")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Could not delete temp file: {str(e)}")
+        except Exception:
+            pass
 
 
 # ─────────────────────────────────────────────
@@ -182,13 +185,8 @@ def analyze_instagram_zip(job_id, zip_path):
 
 def analyze_snapchat_zip(job_id, zip_path):
     try:
-        set_job_status(job_id, "processing")
-        logger.info(f"[{job_id}] Starting Snapchat analysis...")
-        
         validate_zip(zip_path)
         check_zip_safety(zip_path)
-        logger.info(f"[{job_id}] ZIP validation passed")
-        
         folder       = read_instagram_zip(zip_path)
         data         = parse_snapchat_export(folder)
         dashboard_id = create_dashboard({
@@ -196,242 +194,239 @@ def analyze_snapchat_zip(job_id, zip_path):
             "data":   data,
             "folder": folder,
         })
-        
-        set_job_status(job_id, {"status": "complete", "dashboard_id": dashboard_id})
-        logger.info(f"[{job_id}] Analysis complete. Dashboard ID: {dashboard_id}")
-        
+        set_job_status(job_id, "complete", dashboard_id=dashboard_id)
     except Exception as e:
-        error_msg = f"Snapchat processing failed: {str(e)}"
-        set_job_status(job_id, {"error": error_msg, "dashboard_id": None})
-        logger.error(f"[{job_id}] {error_msg}")
-        
+        logger.error(f"Snapchat analysis error: {str(e)}")
+        set_job_status(job_id, "error", error=str(e))
     finally:
         try:
             if os.path.exists(zip_path):
                 os.unlink(zip_path)
-                logger.info(f"[{job_id}] Cleaned up temp file")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Could not delete temp file: {str(e)}")
+        except Exception:
+            pass
 
 
 # ─────────────────────────────────────────────
-#  ROUTES — MAIN
+#  SHARED PROCESSING ROUTE
 # ─────────────────────────────────────────────
-
-@app.route("/")
-def index():
-    return render_template("index.html", error=None, snap_dashboard_id=None)
-
 
 @app.route("/processing/<job_id>")
 def processing(job_id):
-    """Show processing page with JavaScript polling"""
-    return render_template("processing.html", job_id=job_id)
+    return render_template("processing.html", job_id=job_id, snap_dashboard_id=None)
 
 
 @app.route("/api/job-status/<job_id>")
 def api_job_status(job_id):
-    """API endpoint for checking job status"""
-    cleanup_old_jobs()
-    
+    """Polling endpoint for processing.html to check job status."""
     status_data = get_job_status(job_id)
-    
     if status_data is None:
-        return jsonify({"error": "Job not found"}), 404
-    
-    if status_data.get("status") == "processing":
         return jsonify({"status": "processing"})
-    
-    if "error" in status_data:
-        return jsonify({
-            "status": "error",
-            "error": status_data["error"]
-        })
-    
+
+    if status_data.get("status") == "error":
+        return jsonify({"status": "error", "error": status_data.get("error", "Unknown error")})
+
     if status_data.get("status") == "complete" and status_data.get("dashboard_id"):
-        return jsonify({
-            "status": "complete",
-            "dashboard_id": status_data["dashboard_id"]
-        })
-    
-    return jsonify({"status": "unknown"})
+        return jsonify({"status": "complete", "dashboard_id": status_data["dashboard_id"]})
+
+    return jsonify({"status": "processing"})
 
 
 # ─────────────────────────────────────────────
-#  CLOUDINARY ROUTES
-# ─────────────────────────────────────────────
-
-@app.route("/get-upload-signature")
-def get_upload_signature():
-    """Get Cloudinary upload configuration"""
-    if not cloudinary_enabled:
-        return jsonify({
-            "error": "Cloudinary not configured",
-            "local_only": True
-        }), 400
-    
-    return jsonify({
-        "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
-        "api_key": os.environ.get("CLOUDINARY_API_KEY"),
-        "upload_preset": os.environ.get("CLOUDINARY_UPLOAD_PRESET", "instalens_upload"),
-    })
-
-
-@app.route("/process-from-cloudinary", methods=["POST"])
-def process_from_cloudinary():
-    """Download file from Cloudinary and process it"""
-    data      = request.get_json()
-    public_id = data.get("public_id")
-    platform  = data.get("platform", "instagram")
-
-    if not public_id:
-        return jsonify({"error": "No public_id provided"}), 400
-
-    if not cloudinary_enabled:
-        return jsonify({"error": "Cloudinary not configured"}), 500
-
-    try:
-        # Use Cloudinary SDK to fetch the resource
-        cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
-        api_key = os.environ.get("CLOUDINARY_API_KEY")
-        api_secret = os.environ.get("CLOUDINARY_API_SECRET")
-        
-        # Build proper URL using Cloudinary SDK
-        resource_url = cloudinary.utils.cloudinary_url(
-            public_id, 
-            resource_type="raw"
-        )[0]
-        
-        logger.info(f"Downloading from Cloudinary: {resource_url}")
-        
-        response = http_requests.get(
-            resource_url,
-            stream=True,
-            timeout=300
-        )
-        response.raise_for_status()
-
-        # Write to temp file safely
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
-        try:
-            for chunk in response.iter_content(chunk_size=65536):
-                if chunk:
-                    temp_file.write(chunk)
-            temp_file.flush()
-            temp_file.close()  # Ensure file is closed before processing
-            
-            logger.info(f"Downloaded file size: {os.path.getsize(temp_file.name)} bytes")
-
-            # Validate before processing
-            try:
-                validate_file_size(temp_file.name)
-            except ValueError as e:
-                try:
-                    os.unlink(temp_file.name)
-                except Exception:
-                    pass
-                return jsonify({"error": str(e)}), 400
-
-            # Delete from Cloudinary immediately after downloading
-            try:
-                cloudinary.uploader.destroy(public_id, resource_type="raw", invalidate=True)
-                logger.info(f"Deleted {public_id} from Cloudinary")
-            except Exception as e:
-                logger.warning(f"Could not delete {public_id} from Cloudinary: {str(e)}")
-
-            job_id = os.urandom(16).hex()
-            if platform == "snapchat":
-                threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name)).start()
-            else:
-                threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name)).start()
-
-            return jsonify({"job_id": job_id})
-        
-        except Exception as e:
-            # Clean up temp file on error
-            try:
-                if os.path.exists(temp_file.name):
-                    os.unlink(temp_file.name)
-            except Exception:
-                pass
-            raise
-            
-    except Exception as e:
-        logger.error(f"Cloudinary processing error: {str(e)}")
-        return jsonify({"error": f"Cloudinary processing failed: {str(e)}"}), 500
-
-
-# ─────────────────────────────────────────────
-#  LOCAL UPLOAD ROUTE
+#  UPLOAD ROUTES — Local & Cloudinary
 # ─────────────────────────────────────────────
 
 @app.route("/upload-local", methods=["POST"])
 def upload_local():
-    """Handle local file uploads"""
+    """Handle direct local file upload (used when Cloudinary is disabled)."""
     file = request.files.get("file")
     platform = request.form.get("platform", "instagram")
 
-    if not file:
-        return jsonify({"error": "No file uploaded"}), 400
+    if not file or not file.filename:
+        return jsonify({"error": "No file selected."}), 400
 
-    temp_file = None
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    file.save(temp_file.name)
+    temp_file.close()
+
     try:
-        filename = secure_filename(file.filename)
-        
-        # Create temp file safely
+        validate_file_size(temp_file.name)
+    except ValueError as e:
+        try:
+            os.unlink(temp_file.name)
+        except Exception:
+            pass
+        return jsonify({"error": str(e)}), 400
+
+    job_id = os.urandom(16).hex()
+    set_job_status(job_id, "processing")
+
+    if platform == "snapchat":
+        threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name), daemon=True).start()
+    else:
+        threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name), daemon=True).start()
+
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/get-upload-signature")
+def get_upload_signature():
+    """Return Cloudinary signed upload params, or signal local-only mode."""
+    if not cloudinary_enabled:
+        return jsonify({"local_only": True})
+
+    try:
+        timestamp = int(time.time())
+        params_to_sign = {"timestamp": timestamp}
+        signature = cloudinary.utils.api_sign_request(
+            params_to_sign,
+            os.environ.get("CLOUDINARY_API_SECRET")
+        )
+        return jsonify({
+            "signature":  signature,
+            "timestamp":  timestamp,
+            "cloud_name": os.environ.get("CLOUDINARY_CLOUD_NAME"),
+            "api_key":    os.environ.get("CLOUDINARY_API_KEY"),
+            "local_only": False,
+        })
+    except Exception as e:
+        logger.error(f"Signature generation error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/process-from-cloudinary", methods=["POST"])
+def process_from_cloudinary():
+    """Download from Cloudinary and kick off background analysis."""
+    if not cloudinary_enabled:
+        return jsonify({"error": "Cloudinary is not enabled on this server."}), 400
+
+    body = request.get_json(silent=True) or {}
+    public_id = body.get("public_id")
+    platform  = body.get("platform", "instagram")
+
+    if not public_id:
+        return jsonify({"error": "Missing public_id"}), 400
+
+    try:
+        url = cloudinary.utils.cloudinary_url(public_id, resource_type="raw")[0]
+        response = http_requests.get(url, stream=True, timeout=300)
+        response.raise_for_status()
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+        for chunk in response.iter_content(chunk_size=8192):
+            temp_file.write(chunk)
+        temp_file.close()
+
+        try:
+            cloudinary.uploader.destroy(public_id, resource_type="raw")
+        except Exception as e:
+            logger.warning(f"Could not delete Cloudinary asset {public_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Cloudinary download error: {str(e)}")
+        return jsonify({"error": f"Failed to retrieve file from Cloudinary: {str(e)}"}), 500
+
+    job_id = os.urandom(16).hex()
+    set_job_status(job_id, "processing")
+
+    if platform == "snapchat":
+        threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name), daemon=True).start()
+    else:
+        threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name), daemon=True).start()
+
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/cleanup-cloudinary", methods=["POST"])
+def cleanup_cloudinary():
+    """Beacon endpoint to clean up abandoned Cloudinary uploads."""
+    if not cloudinary_enabled:
+        return "", 204
+
+    try:
+        import json
+        body = request.get_data(as_text=True)
+        data = json.loads(body)
+        public_id = data.get("public_id")
+        if public_id:
+            cloudinary.uploader.destroy(public_id, resource_type="raw")
+    except Exception as e:
+        logger.warning(f"Cleanup beacon error: {str(e)}")
+
+    return "", 204
+
+
+# ─────────────────────────────────────────────
+#  INSTAGRAM ROUTES
+# ─────────────────────────────────────────────
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    # Legacy POST fallback (form submit without JS)
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return render_template("index.html", error="Please select a file before submitting.", snap_dashboard_id=None)
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
         file.save(temp_file.name)
-        temp_file.close()  # Close immediately after writing
-        
-        logger.info(f"Local upload received: {filename}, size: {os.path.getsize(temp_file.name)}")
-
-        # Validate file
-        validate_file_size(temp_file.name)
-        validate_zip(temp_file.name)
-        check_zip_safety(temp_file.name)
-        
-        logger.info(f"Local upload validation passed")
-
+        temp_file.close()
+        try:
+            validate_file_size(temp_file.name)
+        except ValueError as e:
+            os.unlink(temp_file.name)
+            return render_template("index.html", error=str(e), snap_dashboard_id=None)
         job_id = os.urandom(16).hex()
+        set_job_status(job_id, "processing")
+        threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name), daemon=True).start()
+        return redirect(url_for("processing", job_id=job_id))
+    return render_template("index.html", error=None, snap_dashboard_id=None)
 
-        if platform == "snapchat":
-            threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name)).start()
-        else:
-            threading.Thread(target=analyze_instagram_zip, args=(job_id, temp_file.name)).start()
-
-        return jsonify({"job_id": job_id})
-
-    except ValueError as e:
-        # Validation error
-        logger.warning(f"Validation error: {str(e)}")
-        if temp_file and os.path.exists(temp_file.name):
-            try:
-                os.unlink(temp_file.name)
-            except Exception:
-                pass
-        return jsonify({"error": str(e)}), 400
-        
-    except Exception as e:
-        # General error
-        logger.error(f"Upload error: {str(e)}")
-        if temp_file and os.path.exists(temp_file.name):
-            try:
-                os.unlink(temp_file.name)
-            except Exception:
-                pass
-        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
-
-
-# ─────────────────────────────────────────────
-#  INSTAGRAM ANALYSIS ROUTES
-# ─────────────────────────────────────────────
 
 @app.route("/dashboard/<dashboard_id>")
 def dashboard(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
-    return render_template("dashboard.html", data=data, dashboard_id=dashboard_id)
+    return render_template("dashboard.html", dashboard=data, dashboard_id=dashboard_id, snap_dashboard_id=None)
+
+
+@app.route("/connections/<dashboard_id>")
+def connections(dashboard_id):
+    data = get_dashboard(dashboard_id)
+    if not data:
+        return _expired()
+    return render_template("connections.html", dashboard=data, dashboard_id=dashboard_id, snap_dashboard_id=None)
+
+
+@app.route("/network/<dashboard_id>")
+def network(dashboard_id):
+    data = get_dashboard(dashboard_id)
+    if not data:
+        return _expired()
+    return render_template("network.html", dashboard=data, dashboard_id=dashboard_id, snap_dashboard_id=None)
+
+
+@app.route("/tables/<dashboard_id>")
+def tables(dashboard_id):
+    data = get_dashboard(dashboard_id)
+    if not data:
+        return _expired()
+    return render_template("tables.html", dashboard=data, dashboard_id=dashboard_id, snap_dashboard_id=None)
+
+
+@app.route("/media/<dashboard_id>")
+def media_stats(dashboard_id):
+    data = get_dashboard(dashboard_id)
+    if not data:
+        return _expired()
+    folder = data.get("folder")
+    media  = parse_media_stats(folder) if folder else {}
+    return render_template("media_report.html", media=media, dashboard=data, dashboard_id=dashboard_id, snap_dashboard_id=None)
+
+
+# Alias so old /media-stats/ links still work
+@app.route("/media-stats/<dashboard_id>")
+def media_stats_alias(dashboard_id):
+    return redirect(url_for("media_stats", dashboard_id=dashboard_id))
 
 
 @app.route("/following/<dashboard_id>")
@@ -439,7 +434,7 @@ def following(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
-    return render_template("tables.html", data=data, dashboard_id=dashboard_id, table="following")
+    return render_template("tables.html", dashboard=data, dashboard_id=dashboard_id, table="following", snap_dashboard_id=None)
 
 
 @app.route("/followers/<dashboard_id>")
@@ -447,7 +442,7 @@ def followers(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
-    return render_template("tables.html", data=data, dashboard_id=dashboard_id, table="followers")
+    return render_template("tables.html", dashboard=data, dashboard_id=dashboard_id, table="followers", snap_dashboard_id=None)
 
 
 @app.route("/not-following-back/<dashboard_id>")
@@ -455,11 +450,15 @@ def not_following_back(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
-    return render_template("tables.html", data=data, dashboard_id=dashboard_id, table="not_following_back")
+    return render_template("tables.html", dashboard=data, dashboard_id=dashboard_id, table="not_following_back", snap_dashboard_id=None)
 
 
-@app.route("/csv/followers/<dashboard_id>")
-def csv_followers(dashboard_id):
+# ─────────────────────────────────────────────
+#  CSV EXPORT ROUTES
+# ─────────────────────────────────────────────
+
+@app.route("/export/followers/<dashboard_id>")
+def export_followers(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
@@ -467,8 +466,8 @@ def csv_followers(dashboard_id):
                     headers={"Content-Disposition": "attachment; filename=followers.csv"})
 
 
-@app.route("/csv/following/<dashboard_id>")
-def csv_following(dashboard_id):
+@app.route("/export/following/<dashboard_id>")
+def export_following(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
@@ -476,8 +475,8 @@ def csv_following(dashboard_id):
                     headers={"Content-Disposition": "attachment; filename=following.csv"})
 
 
-@app.route("/csv/not-following-back/<dashboard_id>")
-def csv_not_following_back(dashboard_id):
+@app.route("/export/not-following-back/<dashboard_id>")
+def export_not_following_back(dashboard_id):
     data = get_dashboard(dashboard_id)
     if not data:
         return _expired()
@@ -485,41 +484,46 @@ def csv_not_following_back(dashboard_id):
                     headers={"Content-Disposition": "attachment; filename=not_following_back.csv"})
 
 
+# ─────────────────────────────────────────────
+#  MEDIA / METADATA ANALYSIS
+# ─────────────────────────────────────────────
+
 @app.route("/media-analysis", methods=["GET", "POST"])
 def media_analysis():
     if request.method == "POST":
         file = request.files.get("media")
         if not file or file.filename == "":
-            return render_template("media_upload.html", error="No file selected.")
-        
+            return render_template("media_upload.html", error="No file selected.", snap_dashboard_id=None)
+
         original_name = secure_filename(file.filename)
         ext = os.path.splitext(original_name)[1].lower()
-        
+
         if ext in {".zip", ".tar", ".gz", ".rar", ".7z"}:
-            return render_template("media_upload.html", error="Please upload an image or video file.")
-        
+            return render_template("media_upload.html", error="Please upload an image or video file.", snap_dashboard_id=None)
+
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
         try:
             file.save(temp_file.name)
             temp_file.close()
-            
+
             from analytics.forensic_analyzer import analyze_file
             report = analyze_file(temp_file.name)
             report["filename"] = original_name
             search_links = reverse_search_urls(temp_file.name)
-            return render_template("metadata_report.html", report=report, filename=original_name, search_links=search_links)
-        
+            return render_template("metadata_report.html", report=report, filename=original_name,
+                                   search_links=search_links, snap_dashboard_id=None)
+
         except Exception as e:
             logger.error(f"Media analysis error: {str(e)}")
-            return render_template("media_upload.html", error=f"Analysis failed: {str(e)}")
-        
+            return render_template("media_upload.html", error=f"Analysis failed: {str(e)}", snap_dashboard_id=None)
+
         finally:
             try:
                 if os.path.exists(temp_file.name):
                     os.unlink(temp_file.name)
             except Exception as e:
                 logger.warning(f"Could not clean up temp file: {str(e)}")
-    
+
     return render_template("media_upload.html", error=None, snap_dashboard_id=None)
 
 
@@ -528,31 +532,32 @@ def metadata_analyzer():
     if request.method == "POST":
         file = request.files.get("file")
         if not file or file.filename == "":
-            return render_template("metadata_upload.html", error="No file selected.")
-        
+            return render_template("metadata_upload.html", error="No file selected.", snap_dashboard_id=None)
+
         original_name = secure_filename(file.filename)
         ext = os.path.splitext(original_name)[1].lower()
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-        
+
         try:
             file.save(temp_file.name)
             temp_file.close()
-            
+
             from analytics.forensic_analyzer import analyze_file
             report = analyze_file(temp_file.name)
-            return render_template("metadata_report.html", report=report, filename=original_name)
-        
+            return render_template("metadata_report.html", report=report, filename=original_name,
+                                   snap_dashboard_id=None)
+
         except Exception as e:
             logger.error(f"Metadata analysis error: {str(e)}")
-            return render_template("metadata_upload.html", error=str(e))
-        
+            return render_template("metadata_upload.html", error=str(e), snap_dashboard_id=None)
+
         finally:
             try:
                 if os.path.exists(temp_file.name):
                     os.unlink(temp_file.name)
             except Exception as e:
                 logger.warning(f"Could not clean up temp file: {str(e)}")
-    
+
     return render_template("metadata_upload.html", error=None, snap_dashboard_id=None)
 
 
@@ -561,16 +566,16 @@ def api_search(dashboard_id):
     query = request.args.get("q", "").strip().lower()
     if not query or len(query) < 2:
         return jsonify({"results": []})
-    
+
     data = get_dashboard(dashboard_id)
     if not data:
         return jsonify({"results": []})
-    
+
     connections   = data.get("connections", {})
     followers_set = set(connections.get("followers", []))
     following_set = set(connections.get("following", []))
     results, seen = [], set()
-    
+
     for user in sorted(followers_set.union(following_set)):
         if query in user.lower() and user not in seen:
             seen.add(user)
@@ -581,7 +586,7 @@ def api_search(dashboard_id):
             else:
                 label = "Fan"
             results.append({"user": user, "label": label})
-    
+
     return jsonify({"results": results[:20]})
 
 
@@ -589,8 +594,25 @@ def api_search(dashboard_id):
 #  SNAPCHAT ROUTES
 # ─────────────────────────────────────────────
 
-@app.route("/snapchat", methods=["GET"])
+@app.route("/snapchat", methods=["GET", "POST"])
 def snapchat_upload():
+    if request.method == "POST":
+        # Legacy form-submit fallback (no JS)
+        file = request.files.get("file")
+        if not file or not file.filename:
+            return render_template("snapchat_upload.html", error="Please select a file before submitting.")
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+        file.save(temp_file.name)
+        temp_file.close()
+        try:
+            validate_file_size(temp_file.name)
+        except ValueError as e:
+            os.unlink(temp_file.name)
+            return render_template("snapchat_upload.html", error=str(e))
+        job_id = os.urandom(16).hex()
+        set_job_status(job_id, "processing")
+        threading.Thread(target=analyze_snapchat_zip, args=(job_id, temp_file.name), daemon=True).start()
+        return redirect(url_for("processing", job_id=job_id))
     return render_template("snapchat_upload.html", error=None)
 
 

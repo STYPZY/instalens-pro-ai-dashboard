@@ -115,6 +115,7 @@ function showError(msg) {
   errorBox.textContent = '⚠ ' + msg;
   errorBox.style.display = 'block';
   submitBtn.disabled = false;
+  submitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Analyze Export';
   progressWrap.style.display = 'none';
 }
 
@@ -144,122 +145,124 @@ async function startUpload(platform) {
   if (!file) { showError('Please select a file before submitting.'); return; }
 
   submitBtn.disabled = true;
-  hint.textContent = 'Uploading…';
-  hint.style.color = '#fffc00';
+  submitBtn.innerHTML = 'Uploading…';
+  hint.textContent    = 'Uploading…';
+  hint.style.color    = '#fffc00';
   errorBox.style.display = 'none';
   progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressLbl.textContent = 'Uploading…';
 
-  const isLocal =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1";
+  try {
+    // STEP 1: Check if Cloudinary is available
+    const sigRes  = await fetch('/get-upload-signature');
+    const sigData = await sigRes.json();
 
-  if (isLocal) {
-    try {
-      progressLbl.textContent = 'Uploading file…';
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("platform", platform);
+    // If Cloudinary is disabled, use local upload
+    if (sigData.local_only === true) {
+      console.log('📤 Cloudinary disabled - using local upload');
+      await uploadLocal(file, platform);
+      return;
+    }
 
-      // Simulate progress for local upload
-      const progressInterval = setInterval(() => {
-        const currentWidth = parseInt(progressBar.style.width) || 0;
-        if (currentWidth < 90) {
-          const newWidth = currentWidth + Math.random() * 30;
-          progressBar.style.width = Math.min(newWidth, 90) + '%';
-          progressPct.textContent = Math.min(Math.floor(newWidth), 90) + '%';
+    if (!sigRes.ok) {
+      showError(sigData.error || 'Upload configuration failed');
+      return;
+    }
+
+    // STEP 2: Upload to Cloudinary (production mode)
+    console.log('☁️  Uploading to Cloudinary');
+    const { signature, timestamp, cloud_name, api_key } = sigData;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', api_key);
+    formData.append('timestamp', timestamp);
+    formData.append('signature', signature);
+
+    const publicId = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = pct + '%';
         }
-      }, 300);
+      };
 
-      const res = await fetch("/upload-local", {
-        method: "POST",
-        body: formData
-      });
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          sessionStorage.setItem('cloudinary_public_id', data.public_id);
+          resolve(data.public_id);
+        } else {
+          reject(new Error('Cloudinary upload failed: ' + xhr.responseText));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during upload'));
+      xhr.send(formData);
+    });
 
-      clearInterval(progressInterval);
-      const data = await res.json();
-      
-      if (data.error) { showError(data.error); return; }
+    // STEP 3: Tell server to process it
+    progressBar.style.width = '100%';
+    progressPct.textContent = '100%';
+    progressLbl.textContent = 'Processing…';
+    submitBtn.innerHTML = 'Processing…';
 
-      progressBar.style.width = '100%';
-      progressPct.textContent = '100%';
-      progressLbl.textContent = 'Processing…';
+    const processRes = await fetch('/process-from-cloudinary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_id: publicId, platform: platform })
+    });
+    const processData = await processRes.json();
 
-      setTimeout(() => {
-        window.location.href = "/processing/" + data.job_id;
-      }, 500);
+    if (processData.error) { showError(processData.error); return; }
 
-    } catch (err) {
-      showError(err.message);
-    }
+    // STEP 4: Redirect to processing page
+    sessionStorage.removeItem('cloudinary_public_id');
+    window.location.href = '/processing/' + processData.job_id;
 
-  } else {
-    try {
-      progressLbl.textContent = 'Getting upload credentials…';
-      const sigRes = await fetch('/get-upload-signature');
-      
-      if (!sigRes.ok) {
-        const sigData = await sigRes.json();
-        return showError(sigData.error || 'Failed to get upload credentials');
-      }
-
-      const { cloud_name, upload_preset } = await sigRes.json();
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', upload_preset);
-
-      progressLbl.textContent = 'Uploading to Cloudinary…';
-
-      const publicId = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud_name}/raw/upload`);
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 100);
-            progressBar.style.width = pct + '%';
-            progressPct.textContent = pct + '%';
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data.public_id);
-          } else {
-            reject(new Error('Cloudinary upload failed: ' + xhr.status));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Network error during upload'));
-        xhr.send(formData);
-      });
-
-      progressLbl.textContent = 'Processing on server…';
-      progressBar.style.width = '95%';
-      progressPct.textContent = '95%';
-
-      const processRes = await fetch('/process-from-cloudinary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ public_id: publicId, platform: platform })
-      });
-
-      const processData = await processRes.json();
-      if (processData.error) { showError(processData.error); return; }
-
-      progressBar.style.width = '100%';
-      progressPct.textContent = '100%';
-      progressLbl.textContent = 'Processing…';
-
-      setTimeout(() => {
-        window.location.href = '/processing/' + processData.job_id;
-      }, 500);
-
-    } catch (err) {
-      showError(err.message);
-    }
+  } catch (err) {
+    showError(err.message || 'Upload failed. Please try again.');
   }
+}
+
+async function uploadLocal(file, platform) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('platform', platform);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload-local');
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+    }
+  };
+
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      const data = JSON.parse(xhr.responseText);
+      if (data.error) { showError(data.error); return; }
+      progressBar.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressLbl.textContent = 'Processing…';
+      submitBtn.innerHTML = 'Processing…';
+      setTimeout(() => { window.location.href = '/processing/' + data.job_id; }, 500);
+    } else {
+      try { showError(JSON.parse(xhr.responseText).error || 'Upload failed'); }
+      catch(e) { showError('Upload failed'); }
+    }
+  };
+
+  xhr.onerror = () => showError('Network error during upload');
+  xhr.send(formData);
 }
 </script>
 
